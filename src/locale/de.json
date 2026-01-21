@@ -1,0 +1,204 @@
+{
+  "app": "Bulk Rename Py",
+
+  "menu": {
+    "file": "Datei",
+    "add_files": "Datei(en) hinzufügen",
+    "add_folder": "Verzeichnis hinzufügen",
+    "show_hidden": "Versteckte Dateien einschließen",
+    "language": "Sprache",
+    "lang_list": {
+      "english": "Englisch",
+      "german": "Deutsch"
+    },
+    "reset_settings": "Einstellungen zurücksetzen",
+    "about": "Über",
+    "exit": "Beenden"
+  },
+
+  "about": {
+    "title": "Über Bulk Rename Py",
+    "description": "Grafisches Tool zum massenhaften Umbenennen von Dateien.",
+    "update_available": "Update verfügbar",
+    "no_update": "Kein Update verfügbar",
+    "update_failed": "Update-Check fehlgeschlagen",
+    "license": "Lizenz:",
+    "developer": "Entwickler:",
+    "license_window_title": "Lizenz"
+  },
+
+  "sections": {
+    "rename": {
+      "title": "Dateiname",
+      "lbl_datefmt": "Datumsformat:",
+      "lbl_timefmt": "Zeitformat:",
+      "lbl_sep": "Trennzeichen:",
+      "sep_none": "Keins",
+      "sep_space": "Leerzeichen",
+      "date_type": "Datumstyp:",
+      "date_current": "Aktuelles Datum",
+      "date_change": "Änderungsdatum"
+    },
+
+    "extension": { "title": "Dateiendung" },
+
+    "replace": {
+      "title": "Suchen && Ersetzen",
+      "lbl_search": "Suche nach:",
+      "lbl_replace": "Ersetze durch:",
+      "cb_regex": "RegEx",
+      "cb_exact_matches": "Nur exakte Treffer",
+      "cb_first_match": "Nur ersten Treffer",
+      "cb_case_sens": "Groß-/Kleinschreibung",
+      "cb_ignore_ext": "Dateiendung ausschließen"
+    },
+
+    "counter": {
+      "title": "Zähler",
+      "lbl_start": "Start:",
+      "lbl_step": "Schritte:",
+      "lbl_digits": "Stellen:",
+      "dupes": "Nur bei Duplikaten"
+    },
+
+    "advanced_opts": {
+      "title": "Erweiterte Optionen",
+      "lbl_case": "Groß-/Kleinschreibung:",
+      "case_values": {
+        "unchanged": "Unverändert",
+        "lowercase": "Alles klein",
+        "uppercase": "Alles groß",
+        "heading": "Überschriftenstil",
+        "mocking": "Mock-Stil"
+      },
+      "cb_windows": "Windows-kompatible Namen",
+      "btn_editor": "In Texteditor öffnen"
+    }
+  },
+
+  "actions": {
+    "clear_list": "Liste leeren",
+    "rename": "Umbenennen",
+    "undo": "Rückgängig machen"
+  },
+
+  "dialogs": {
+    "open_files": "Datei(en) hinzufügen",
+    "file_types": "Alle Dateien (*)",
+    "open_folder": "Verzeichnis hinzufügen",
+    "buttons": {
+      "open_again": "Erneut öffnen",
+      "cancel": "Abbrechen",
+      "ok": "OK",
+      "yes": "Ja",
+      "no": "Nein"
+    }
+  },
+
+  "table": {
+    "current_name": "Aktueller Name",
+    "new_name": "Neuer Name"
+  },
+
+  "context_menu": {
+    "remove": "Entfernen"
+  },
+
+  "messages": {
+    "info": "Hinweis",
+    "error": "Fehler",
+    "confirm": "Bestätigung",
+    "warning": "Warnung",
+    "questions": {
+      "reset_settings": "Alle Einstellungen auf die Standardwerte zurücksetzen?",
+      "load_from_editor": "Sollen die Änderungen aus dem Editor übernommen werden?",
+      "confirm_rename": "Soll die Umbenennung wirklich ausgeführt werden?",
+      "confirm_undo": "Sollen die Umbenennungen wirklich rückgängig gemacht werden?",
+      "invalidate_undo": "Nach dieser Aktion ist das Rückgängig-Machen der letzten Umbenennungen nicht mehr möglich.\n\nFortfahren?"
+    },
+    "confirmation": {
+      "settings_reset": "Einstellungen wurden zurückgesetzt.",
+      "rename_done": "Die Dateien wurden erfolgreich umbenannt.",
+      "undo_done": "Die vorherige Umbenennung wurde erfolgreich rückgängig gemacht."
+    },
+    "information": {
+      "multiple_directories": "Es kann immer nur ein Verzeichnis importiert werden.",
+      "no_files": "Es sind keine Dateien zum Bearbeiten vorhanden.",
+      "no_files_for_rename": "Es wurden keine Dateien geladen, die umbenannt werden können.",
+      "no_effective_rename": "Keine Dateien wurden umbenannt (alle neuen Namen sind identisch mit den aktuellen).",
+      "no_undo": "Es ist kein Undo-Vorgang verfügbar."
+    },
+    "errors": {
+      "read_failed": "Die geänderte Datei konnte nicht gelesen werden.",
+      "editor_count_mismatch": "Die Anzahl der Zeilen in der Datei stimmt nicht mit der Anzahl der geladenen Dateien überein.",
+      "conflicts_found": "Es wurden Namenskonflikte festgestellt. Die betroffenen Dateien können nicht umbenannt werden:",
+      "missing_sources": "Eine oder mehrere Quelldateien konnten nicht gefunden werden:",
+      "rename_failed": "Beim Umbenennen sind Fehler aufgetreten:",
+      "missing_sources_undo": "Eine oder mehrere Quelldateien konnten beim Rückgängigmachen nicht gefunden werden:",
+      "undo_failed": "Beim Rückgängigmachen sind Fehler aufgetreten:"
+    },
+    "warnings": {
+      "name_too_long": "Mindestens ein Zielname ist zu lang.\nUmbenennung nicht möglich."
+    }
+  },
+
+  "tooltips": {
+    "menu": {
+      "act_add_files": "Fügt einzelne oder mehrere Dateien hinzu",
+      "act_add_folder": "Fügt alle Dateien eines ausgewählten Verzeichnisses hinzu",
+      "act_hidden": "Bezieht beim hinzufügen auch versteckte Dateien mit ein",
+      "act_reset": "Setzt alle Einstellungen auf die Standardwerte zurück",
+      "act_about": "Informationen über die Anwendung",
+      "act_exit": "Beendet das Programm"
+    },
+    "rename": {
+      "edit_mask": "Legt das Muster für die neuen Dateinamen fest",
+      "btn_name": "Steht für den ursprünglichen Dateinamen (ohne Dateiendung)",
+      "btn_name_slice": "Fügt einen Teil des ursprünglichen Namens ein, z. B. {name1-3} oder {name4-*}",
+      "btn_counter": "Erzeugt fortlaufende Nummerierungen gemäß den Zählereinstellungen",
+      "btn_date": "Wird gemäß dem gewählten Datumsformat ersetzt",
+      "btn_time": "Wird gemäß dem gewählten Zeitformat ersetzt",
+      "cmb_date": "Legt das Datumsformat fest, das für {date} verwendet wird",
+      "cmb_date_sep": "Legt das Trennzeichen zwischen den Datumsbestandteilen fest",
+      "cmb_time": "Legt das Zeitformat fest, das für {time} verwendet wird",
+      "cmb_time_sep": "Legt das Trennzeichen zwischen den Zeitbestandteilen fest",
+      "cmb_datetype": "Bestimmt, welches Datum verwendet wird – aktuelles oder Änderungsdatum"
+    },
+    "extension": {
+      "edit_ext": "Legt das Muster für die neue Dateiendung fest",
+      "btn_ext": "Steht für die ursprüngliche Dateiendung",
+      "btn_ext_slice": "Fügt einen Teil der ursprünglichen Dateiendung ein, z. B. {ext1-2} oder {ext2-*}",
+      "btn_counter": "Erzeugt fortlaufende Nummerierungen gemäß den Zählereinstellungen"
+    },
+    "replace": {
+      "edit_search": "Definiert den Suchbegriff oder das Muster, das im Dateinamen ersetzt werden soll",
+      "edit_replace": "Legt den Text fest, der anstelle des gefundenen Ausdrucks eingefügt wird",
+      "cb_regex": "Aktiviert die Verwendung regulärer Ausdrücke im Suchfeld",
+      "cb_first_match": "Begrenzt die Ersetzung auf das erste gefundene Vorkommen pro Dateiname",
+      "cb_exact_matches": "Erfordert eine genaue Übereinstimmung des gesamten Namens anstelle einer Teilübereinstimmung",
+      "cb_case_sens": "Unterscheidet zwischen Groß- und Kleinschreibung bei der Suche",
+      "cb_ignore_ext": "Schließt die Dateiendung aus"
+    },
+    "counter": {
+      "spin_start": "Legt den Startwert des Zählers fest, mit dem die Nummerierung beginnt",
+      "spin_step": "Legt fest, um welchen Wert der Zähler bei jeder weiteren Datei steigt",
+      "spin_digits": "Legt fest, auf wie viele Ziffern der Zähler bei Bedarf mit führenden Nullen aufgefüllt wird",
+      "cb_dupes": "Beschränkt die Zählervergabe auf Dateien mit identischem Basisnamen"
+    },
+    "advanced_opts": {
+      "cmb_case": "Legt fest, wie die Groß- und Kleinschreibung der neuen Dateinamen angepasst wird",
+      "cb_windows": "Ersetzt Zeichen, die unter Windows in Dateinamen nicht erlaubt sind",
+      "cb_windows_forced": "Ersetzt Zeichen, die unter Windows in Dateinamen nicht erlaubt sind\n(Unter Windows immer aktiv)",
+      "btn_editor": "Öffnet die aktuelle Vorschau in einem externen Texteditor zur manuellen Bearbeitung"
+    },
+    "actions": {
+      "btn_clear": "Leert die aktuelle Dateiliste",
+      "btn_rename": "Startet den Umbenennungsvorgang",
+      "btn_undo": "Macht die zuletzt durchgeführte Umbenennung rückgängig\n(funktioniert nur, solange das Programm nicht beendet wurde!)"
+    },
+    "table": {
+      "filename_too_long_windows": "Name oder Pfad ist zu lang. (Windows)",
+      "filename_too_long_linux": "Name oder Pfad überschreitet die Byte-Grenze. (Linux)"
+    }
+  }
+}

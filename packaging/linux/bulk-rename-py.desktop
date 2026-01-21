@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Bulk Rename Py
+GenericName=Program for renaming files
+GenericName[de]=Programm zum Umbenennen von Dateien
+Comment=Graphical application for bulk file renaming
+Comment[de]=Grafisches Tool zum massenhaften Umbenennen von Dateien
+Icon=bulk-rename-py
+Exec=bulk-rename-py
+TryExec=bulk-rename-py
+Terminal=false
+StartupNotify=true
+Categories=Utility;FileTools;
+Keywords=rename;mass;batch;bulk;files;regex;counter;
+Keywords[de]=umbenennen;masse;stapel;bulk;dateien;regex;zähler;

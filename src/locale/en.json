@@ -1,0 +1,204 @@
+{
+  "app": "Bulk Rename Py",
+
+  "menu": {
+    "file": "File",
+    "add_files": "Add File(s)",
+    "add_folder": "Add Folder",
+    "show_hidden": "Include Hidden Files",
+    "language": "Language",
+    "lang_list": {
+      "english": "English",
+      "german": "German"
+    },
+    "reset_settings": "Reset Settings",
+    "about": "About",
+    "exit": "Exit"
+  },
+
+  "about": {
+    "title": "About Bulk Rename Py",
+    "description": "Graphical application for bulk file renaming.",
+    "update_available": "Update available",
+    "no_update": "No update available",
+    "update_failed": "Update check failed",
+    "license": "License:",
+    "developer": "Developer:",
+    "license_window_title": "License"
+  },
+
+  "sections": {
+    "rename": {
+      "title": "Filename",
+      "lbl_datefmt": "Date Format:",
+      "lbl_timefmt": "Time Format:",
+      "lbl_sep": "Separator:",
+      "sep_none": "None",
+      "sep_space": "Space",
+      "date_type": "Date Type:",
+      "date_current": "Current Date",
+      "date_change": "Modified Date"
+    },
+
+    "extension": { "title": "Extension" },
+
+    "replace": {
+      "title": "Search && Replace",
+      "lbl_search": "Search for:",
+      "lbl_replace": "Replace with:",
+      "cb_regex": "RegEx",
+      "cb_exact_matches": "Exact Matches Only",
+      "cb_first_match": "First Match Only",
+      "cb_case_sens": "Case Sensitive",
+      "cb_ignore_ext": "Exclude Extension"
+    },
+
+    "counter": {
+      "title": "Counter",
+      "lbl_start": "Start:",
+      "lbl_step": "Steps:",
+      "lbl_digits": "Digits:",
+      "dupes": "Duplicates Only"
+    },
+
+    "advanced_opts": {
+      "title": "Advanced Options",
+      "lbl_case": "Upper-/Lowercase:",
+      "case_values": {
+        "unchanged": "Unchanged",
+        "lowercase": "Lowercase",
+        "uppercase": "Uppercase",
+        "heading": "Title Case",
+        "mocking": "Mock-Style"
+      },
+      "cb_windows": "Windows-Compatible Names",
+      "btn_editor": "Open in Text Editor"
+    }
+  },
+
+  "actions": {
+    "clear_list": "Clear List",
+    "rename": "Rename",
+    "undo": "Undo"
+  },
+
+  "dialogs": {
+    "open_files": "Add File(s)",
+    "file_types": "All files (*)",
+    "open_folder": "Add Folder",
+    "buttons": {
+      "open_again": "Open Again",
+      "cancel": "Cancel",
+      "ok": "OK",
+      "yes": "Yes",
+      "no": "No"
+    }
+  },
+
+  "table": {
+    "current_name": "Current Name",
+    "new_name": "New Name"
+  },
+
+  "context_menu": {
+    "remove": "Remove"
+  },
+
+  "messages": {
+    "info": "Information",
+    "error": "Error",
+    "confirm": "Confirmation",
+    "warning": "Warning",
+    "questions": {
+      "reset_settings": "Reset all settings to their default values?",
+      "load_from_editor": "Apply the changes made in the editor?",
+      "confirm_rename": "Do you really want to perform the renaming?",
+      "confirm_undo": "Do you really want to undo the renaming?",
+      "invalidate_undo": "After this action, it will no longer be possible to undo the last renaming operations.\n\nContinue?"
+    },
+    "confirmation": {
+      "settings_reset": "Settings have been reset.",
+      "rename_done": "Files have been successfully renamed.",
+      "undo_done": "The previous renaming has been successfully undone."
+    },
+    "information": {
+      "multiple_directories": "Only one directory can be imported at a time.",
+      "no_files": "No files available for processing.",
+      "no_files_for_rename": "No files were loaded that can be renamed.",
+      "no_effective_rename": "No files were renamed (all new names match the current ones).",
+      "no_undo": "No undo operation available."
+    },
+    "errors": {
+      "read_failed": "The modified file could not be read.",
+      "editor_count_mismatch": "The number of lines in the file does not match the number of loaded files.",
+      "conflicts_found": "Naming conflicts were detected. The affected files cannot be renamed:",
+      "missing_sources": "One or more source files could not be found:",
+      "rename_failed": "Errors occurred during renaming:",
+      "missing_sources_undo": "One or more source files could not be found during undo:",
+      "undo_failed": "Errors occurred during undo:"
+    },
+    "warnings": {
+      "name_too_long": "At least one destination name is too long. Renaming is not possible."
+    }
+  },
+
+  "tooltips": {
+    "menu": {
+      "act_add_files": "Adds one or more individual files",
+      "act_add_folder": "Adds all files from a selected folder",
+      "act_hidden": "Includes hidden files when adding",
+      "act_reset": "Resets all settings to their default values",
+      "act_about": "Display information about the application",
+      "act_exit": "Closes the program"
+    },
+    "rename": {
+      "edit_mask": "Defines the pattern for new filenames",
+      "btn_name": "Represents the original filename (without extension)",
+      "btn_name_slice": "Inserts a part of the original name, e.g. {name1-3} or {name4-*}",
+      "btn_counter": "Generates sequential numbering according to the counter settings",
+      "btn_date": "Replaced according to the selected date format",
+      "btn_time": "Replaced according to the selected time format",
+      "cmb_date": "Specifies the date format used for {date}",
+      "cmb_date_sep": "Specifies the separator between date components",
+      "cmb_time": "Specifies the time format used for {time}",
+      "cmb_time_sep": "Specifies the separator between time components",
+      "cmb_datetype": "Determines which date is used – current or modified date"
+    },
+    "extension": {
+      "edit_ext": "Defines the pattern for the new file extension",
+      "btn_ext": "Represents the original file extension",
+      "btn_ext_slice": "Inserts part of the original extension, e.g. {ext1-2} or {ext2-*}",
+      "btn_counter": "Generates sequential numbering according to the counter settings"
+    },
+    "replace": {
+      "edit_search": "Defines the search term or pattern to be replaced in filenames",
+      "edit_replace": "Defines the text to insert in place of the found term",
+      "cb_regex": "Enables the use of regular expressions in the search field",
+      "cb_first_match": "Limits replacement to the first match per filename",
+      "cb_exact_matches": "Requires an exact match of the entire name instead of partial matches",
+      "cb_case_sens": "Distinguishes between uppercase and lowercase letters when searching",
+      "cb_ignore_ext": "Excludes the file extension"
+    },
+    "counter": {
+      "spin_start": "Sets the starting value of the counter where numbering begins",
+      "spin_step": "Specifies how much the counter increases with each file",
+      "spin_digits": "Defines how many digits the counter is padded to with leading zeros if needed",
+      "cb_dupes": "Restricts counter numbering to files with identical base names"
+    },
+    "advanced_opts": {
+      "cmb_case": "Defines how the letter case of new filenames is adjusted",
+      "cb_windows": "Replaces characters that are not allowed in file names under Windows",
+      "cb_windows_forced": "Replaces characters that are not allowed in file names under Windows\n(always active under Windows)",
+      "btn_editor": "Opens the current preview in an external text editor for manual editing"
+    },
+    "actions": {
+      "btn_clear": "Clears the current file list",
+      "btn_rename": "Starts the renaming process",
+      "btn_undo": "Undoes the last renaming operation (works only until the program is closed!)"
+    },
+    "table": {
+      "filename_too_long_windows": "Name or path is too long. (Windows)",
+      "filename_too_long_linux": "Name or path exceeds the byte limit. (Linux)"
+    }
+  }
+}
