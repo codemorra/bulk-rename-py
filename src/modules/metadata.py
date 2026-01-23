@@ -8,7 +8,7 @@
 Application metadata for Bulk Rename Py.
 """
 
-import pathlib
+from pathlib import Path
 
 
 def get_license_text() -> str:
@@ -18,12 +18,10 @@ def get_license_text() -> str:
     **Returns:**
         `str`: combined license texts
     """
-    root_path = pathlib.Path(__file__).parent.parent.parent
-    license_file = root_path / "LICENSE"
-    third_party_file = root_path / "THIRD_PARTY_LICENSES.txt"
+    src_root = Path(__file__).resolve().parent.parent
 
-    license_text = license_file.read_text(encoding="utf-8")
-    third_party_text = third_party_file.read_text(encoding="utf-8")
+    license_text = (src_root / "licenses/LICENSE").read_text(encoding="utf-8")
+    third_party_text = (src_root / "licenses/THIRD_PARTY_LICENSES.txt").read_text(encoding="utf-8")
 
     return license_text + "\n\n\n\n\n" + third_party_text
 
