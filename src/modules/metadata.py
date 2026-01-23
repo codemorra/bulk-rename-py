@@ -28,7 +28,7 @@ def get_license_text() -> str:
 
 APP_INFO = {
     'name': 'Bulk Rename Py',
-    'version': '1.0.0',
+    'version': '1.0.1',
     'developer': 'Codemorra',
     'copyright': '© 2026–present Codemorra',
     'license': 'MIT',
