@@ -10,15 +10,38 @@ It provides a wide range of features for conveniently renaming large numbers of 
 
 ## Technical Requirements
 
+### Manual installation
+
 - **Python:** **>= 3.13**
 - **Dependencies:** see [`requirements.txt`](requirements.txt)
-- **Operating systems:**
-  - Linux (tested on Arch Linux)
-  - Windows (tested on Windows 11)
+
+### Prebuilt packages
+
+- **AUR (Linux):** Python and dependencies are provided by the system package manager
+- **Windows:** All required runtime files are included in the release archive
+
+### Operating systems
+
+- Linux (tested on Arch Linux)
+- Windows (tested on Windows 11)
 
 ---
 
 ## Installation
+
+### AUR
+
+The application is available in the Arch User Repository and can be installed using your preferred AUR helper, for example:
+
+```bash
+yay -S bulk-rename-py
+```
+
+### Windows
+
+The [latest release](https://github.com/codemorra/bulk-rename-py/releases/latest) provides a `.zip` archive containing a Windows executable along with all required runtime files.
+
+### Manually – Linux (without AUR)
 
 Clone the repository and set up a Python virtual environment:
 
@@ -26,15 +49,15 @@ Clone the repository and set up a Python virtual environment:
 git clone https://github.com/codemorra/bulk-rename-py.git
 cd bulk-rename-py
 python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
-python src/bulk_rename_py.py     # Windows: python src\bulk_rename_py.py
+python src/bulk_rename_py.py
 ```
 
-### Optional: Create a Desktop Shortcut
+#### Optional: Create a Desktop Shortcut (desktop environments with .desktop files)
 
-#### **Linux (desktop environments with .desktop files)**
+*This step is only required for manual installations. AUR installations already include a system-wide desktop entry.*
 
 1. Copy the provided `.desktop` file from the repository to the appropriate directory:
 
@@ -63,10 +86,23 @@ python src/bulk_rename_py.py     # Windows: python src\bulk_rename_py.py
     chmod +x ~/.local/share/applications/bulk-rename-py.desktop
     ```
 
-    The application should now appear in the application menu and can be pinned to the desktop.  
-    *(You may need to refresh the desktop cache for it to become visible.)*
+    The application should now appear in the application menu.
 
-#### **Windows**
+### Manually - Windows
+
+Clone the repository and set up a Python virtual environment:
+
+```bash
+git clone https://github.com/codemorra/bulk-rename-py.git
+cd bulk-rename-py
+python -m venv .venv
+.venv\Scripts\activate
+pip install --upgrade pip
+pip install -r requirements.txt
+python src\bulk_rename_py.py
+```
+
+#### Optional: Create a Desktop Shortcut
 
 1. Right-click on the desktop → New → Shortcut
     - Target:
@@ -84,9 +120,13 @@ python src/bulk_rename_py.py     # Windows: python src\bulk_rename_py.py
 
 ## Updates
 
-You can check for available updates in the About dialog. If an update is available, this will be indicated next to the version number.
+You can check for available updates in the About dialog. If an update is available, it will be indicated next to the version number.
 
-To update the application, run:
+When installed via the AUR, updates are handled automatically by the package manager.
+
+On Windows, the [latest release](https://github.com/codemorra/bulk-rename-py/releases/latest) can be downloaded as a `.zip` archive from the Releases section.
+
+For manual installations, updates can be applied as follows:
 ```bash
 git pull
 pip install -r requirements.txt --upgrade
