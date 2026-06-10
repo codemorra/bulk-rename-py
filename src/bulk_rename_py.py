@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # Bulk Rename Py
-# © 2026–present Codemorra
+# © 2026–present Codemorra (Christopher Kranz)
 # Licensed under the MIT License (see LICENSE file)
 
 """
@@ -20,7 +20,8 @@ from PySide6.QtCore import Qt, QSize
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QIcon, QGuiApplication
 from modules import icons_rc
-from modules.gui import MainWindow
+from modules.gui import main_window
+from modules.gui.main_window import MainWindow
 
 
 def _apply_windows_theme(app: QApplication) -> None:
