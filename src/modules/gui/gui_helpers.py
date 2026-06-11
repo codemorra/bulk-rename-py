@@ -4,10 +4,11 @@
 # © 2026–present Codemorra (Christopher Kranz)
 # Licensed under the MIT License (see LICENSE file)
 
-"""
-GUI module for Bulk Rename Py.
+"""GUI helpers module for Bulk Rename Py.
 
-Provides the main window with all GUI functions.
+Provides utility functions and helper methods for GUI operations,
+including translation, window management, UI element manipulation,
+and common dialog operations.
 """
 
 from __future__ import annotations
@@ -34,15 +35,17 @@ DEFAULT_TOKEN_EXT_SLICE = '{ext1-3}'
 
 
 class GUIHelpers:
-    """
-    Helper methods for the GUI module.
+    """GUI helper class for Bulk Rename Py.
+
+    Provides utility methods for GUI operations including translation,
+    window management, UI element manipulation, and common dialog operations.
     """
 
     def __init__(self, main_window):
-        """Initializes the GUIHelpers with a reference to the main window.
+        """Initialize GUI helpers with reference to main window.
 
         **Parameters:**
-            `main_window`: Reference to the main application window
+            `main_window`: Reference to main application window
 
         **Returns:**
             `None`
@@ -50,12 +53,10 @@ class GUIHelpers:
         self.main_window = main_window
 
     def resizeEvent(self, e) -> None:
-        """Enforces a minimum width for the main window and calls the standard resize event.
-
-        Acts as a Qt event handler for window resize events.
+        """Handle window resize events to enforce minimum width.
 
         **Parameters:**
-            `e` (QResizeEvent): Resize event object
+            `e`: Resize event
 
         **Returns:**
             `None`
@@ -66,24 +67,21 @@ class GUIHelpers:
         super(MainWindow, self.main_window).resizeEvent(e)
 
     def tr(self, key: str) -> str:
-        """
-        Short form for translations using the Translator object.
+        """Translate text using application translator.
 
         **Parameters:**
-            `key` (str): Key for the language string (e.g., "menu.file")
+            `key` (str): Translation key
 
         **Returns:**
-            `str`: Translated text string
+            `str`: Translated text
         """
         return self.main_window.translator.t(key)
 
     def set_language(self, code: str) -> None:
-        """
-        Saves the selected language in the configuration and
-        restarts the window with the new language.
+        """Set application language and restart window.
 
         **Parameters:**
-            `code` (str): Language code (e.g., "en" or "de")
+            `code` (str): Language code to set
 
         **Returns:**
             `None`
@@ -93,10 +91,9 @@ class GUIHelpers:
         self.restart_window()
 
     def restart_window(self) -> None:
-        """
-        Opens a new main window and closes the current one.
+        """Restart the main application window.
 
-        Used, among other things, after language or configuration changes.
+        Creates new window instance and closes current one.
 
         **Returns:**
             `None`
@@ -108,6 +105,7 @@ class GUIHelpers:
             self.main_window._next_window.show()
             self.main_window.close()
         except Exception as e:
+            # Show error message if restart fails
             QMessageBox.critical(
                 self.main_window,
                 self.helpers.tr('messages.error'),
@@ -115,49 +113,47 @@ class GUIHelpers:
             )
 
     def insert_token(self, edit, token: str) -> None:
-        """
-        Inserts a placeholder token (e.g., "{name}", "{counter}", "{date}")
-        at the current cursor position in a QLineEdit.
+        """Insert token text into editor widget.
 
         **Parameters:**
-            `edit` (QLineEdit): Target input field
-            `token` (str): Placeholder string to be inserted
+            `edit`: Editor widget to insert into
+            `token` (str): Token text to insert
 
         **Returns:**
             `None`
         """
         if edit is None:
+            # Skip if editor is None
             return
         edit.setFocus()
         edit.insert(token)
 
     def is_windows(self) -> bool:
-        """
-        Checks whether the program is running under Windows.
+        """Check if running on Windows operating system.
 
         **Returns:**
-            `bool`: True if the operating system is Windows, otherwise False
+            `bool`: True if running on Windows, False otherwise
         """
         return os.name == 'nt'
 
     def set_combo_by_data(self, combo, value: str) -> None:
-        """
-        Selects the entry in the passed QComboBox widget
-        whose stored itemData corresponds to the specified value.
+        """Set combo box current item by data value.
 
         **Parameters:**
-            `combo` (QComboBox): Target combo box
-            `value` (str): Comparison value from itemData()
+            `combo`: Combo box widget
+            `value` (str): Data value to search for
 
         **Returns:**
             `None`
         """
         try:
+            # Search for matching data value in combo box
             for i in range(combo.count()):
                 if combo.itemData(i) == value:
                     combo.setCurrentIndex(i)
                     return
         except Exception as e:
+            # Show warning if operation fails
             QMessageBox.warning(
                 self.main_window,
                 self.helpers.tr('messages.warning'),
@@ -165,19 +161,19 @@ class GUIHelpers:
             )
 
     def question_box(self, title_key: str, text_key: str) -> bool:
-        """
-        Displays a localized security prompt with "Yes"/"No" options.
+        """Show yes/no question dialog.
 
         **Parameters:**
-            `title_key` (str): Translation key for the window title
-            `text_key` (str): Translation key for the prompt text
+            `title_key` (str): Translation key for dialog title
+            `text_key` (str): Translation key for dialog text
 
         **Returns:**
-            `bool`: True if the user selects "Yes", otherwise False
+            `bool`: True if user clicked Yes, False if No
         """
         title = self.tr(title_key)
         text = self.tr(text_key)
 
+        # Create and configure question dialog
         box = QMessageBox(self.main_window)
         box.setIcon(QMessageBox.Question)
         box.setWindowTitle(title)
@@ -192,27 +188,28 @@ class GUIHelpers:
         return box.clickedButton() == yes_btn
 
     def reset_text_fields(self) -> None:
-        """
-        Resets all editable text fields (name mask, extension, search, replace)
-        to their default values.
+        """Reset all text input fields to default values.
 
         **Returns:**
             `None`
         """
+        # Reset rename mask field
         self.main_window.edit_mask.setText('{name}')
+        # Reset extension field
         self.main_window.edit_ext.setText('{ext}')
+        # Clear search field
         self.main_window.edit_search.setText('')
+        # Clear replace field
         self.main_window.edit_replace.setText('')
 
     def apply_tooltips(self) -> None:
-        """
-        Assigns tooltips to all GUI elements based on the current language.
+        """Apply tooltips to all UI elements based on translation keys.
 
         **Returns:**
             `None`
         """
         tooltip_mapping = {
-            # menu bar
+            # Menu bar
             'act_add_files': 'tooltips.menu.act_add_files',
             'act_add_folder': 'tooltips.menu.act_add_folder',
             'act_hidden': 'tooltips.menu.act_hidden',
@@ -220,12 +217,12 @@ class GUIHelpers:
             'act_about': 'tooltips.menu.act_about',
             'act_exit': 'tooltips.menu.act_exit',
 
-            # lower buttons
+            # Lower buttons
             'btn_clear': 'tooltips.actions.btn_clear',
             'btn_rename': 'tooltips.actions.btn_rename',
             'btn_undo': 'tooltips.actions.btn_undo',
 
-            # rename section
+            # Rename section
             'edit_mask': 'tooltips.rename.edit_mask',
             'btn_name': 'tooltips.rename.btn_name',
             'btn_name_slice': 'tooltips.rename.btn_name_slice',
@@ -238,13 +235,13 @@ class GUIHelpers:
             'cmb_time_sep': 'tooltips.rename.cmb_time_sep',
             'cmb_datetype': 'tooltips.rename.cmb_datetype',
 
-            # extension section
+            # Extension section
             'edit_ext': 'tooltips.extension.edit_ext',
             'btn_ext': 'tooltips.extension.btn_ext',
             'btn_ext_slice': 'tooltips.extension.btn_ext_slice',
             'btn_ext_counter': 'tooltips.extension.btn_counter',
 
-            # replace section
+            # Replace section
             'edit_search': 'tooltips.replace.edit_search',
             'edit_replace': 'tooltips.replace.edit_replace',
             'cb_regex': 'tooltips.replace.cb_regex',
@@ -253,63 +250,58 @@ class GUIHelpers:
             'cb_case_sens': 'tooltips.replace.cb_case_sens',
             'cb_ignore_ext': 'tooltips.replace.cb_ignore_ext',
 
-            # counter section
+            # Counter section
             'spin_start': 'tooltips.counter.spin_start',
             'spin_step': 'tooltips.counter.spin_step',
             'spin_digits': 'tooltips.counter.spin_digits',
             'cb_dupes': 'tooltips.counter.cb_dupes',
 
-            # advanced options section
+            # Advanced options section
             'cmb_case': 'tooltips.advanced_opts.cmb_case',
             'cb_windows': 'tooltips.advanced_opts.cb_windows_forced' if self.is_windows() else 'tooltips.advanced_opts.cb_windows',
             'btn_editor': 'tooltips.advanced_opts.btn_editor'
         }
 
+        # Apply tooltips to all mapped UI elements
         for attr, tooltip_key in tooltip_mapping.items():
             getattr(self.main_window, attr).setToolTip(self.tr(tooltip_key))
 
     def format_overlen_tooltip(self, messages: list[str]) -> str:
-        """
-        Adjusts the tooltip for files whose names are too long.
+        """Format tooltip text from list of messages.
 
         **Parameters:**
-            `messages` (list[str]): List of translated messages
+            `messages` (list[str]): List of message strings
 
         **Returns:**
-            `str`: Combined tooltip text
+            `str`: Formatted tooltip text
         """
+        # Join non-empty messages with separator
         msgs = ' / '.join(m for m in messages if m)
 
         return f'{msgs} ' if msgs else ''
 
     def style_preview_cell(self, item, invalid: bool, tooltip_text: str, fallback_name: str) -> None:
-        """
-        Formats a preview cell in the table widget.
-
-        Behavior:
-        - If length/size is invalid: Text in red + italics
-        - Tooltip shows "<message>"
-        - If valid: Standard color + tooltip = file name
+        """Style preview table cell based on validation status.
 
         **Parameters:**
-            `item` (QTableWidgetItem): Cell in the preview table.
-            `invalid` (bool): True = invalid, False = valid.
-            `tooltip_text` (str): Tooltip text in case of error.
-            `fallback_name` (str): Tooltip text in case of valid name.
+            `item`: Table item to style
+            `invalid` (bool): Whether item is invalid
+            `tooltip_text` (str): Tooltip text for invalid items
+            `fallback_name` (str): Fallback tooltip text
 
         **Returns:**
             `None`
         """
-        # set italic font if invalid, normal otherwise
+        # Set italic font for invalid items
         cell_font = item.font()
         cell_font.setItalic(bool(invalid))
         item.setFont(cell_font)
 
-        # apply red text color and error tooltip if invalid
         if invalid:
+            # Style invalid items with red text and error tooltip
             item.setForeground(QBrush(QColor(Qt.red)))
             item.setToolTip(tooltip_text or fallback_name)
         else:
-            # reset to default color and show normal tooltip
+            # Style valid items with default text and normal tooltip
             item.setForeground(QBrush())
             item.setToolTip(fallback_name)

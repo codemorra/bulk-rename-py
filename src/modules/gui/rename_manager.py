@@ -4,10 +4,10 @@
 # © 2026–present Codemorra (Christopher Kranz)
 # Licensed under the MIT License (see LICENSE file)
 
-"""
-GUI module for Bulk Rename Py.
+"""Rename manager module for Bulk Rename Py.
 
-Provides the main window with all GUI functions.
+Handles file renaming operations, configuration collection, validation,
+and preview generation for the bulk rename functionality.
 """
 
 from __future__ import annotations
@@ -38,15 +38,17 @@ UNCHANGED_CASE = 'unchanged'
 
 
 class RenameManager:
-    """
-    Manages the renaming preview and operations.
+    """Rename manager class for Bulk Rename Py.
+
+    Handles file renaming operations, configuration collection, validation,
+    and preview generation for the bulk rename functionality.
     """
 
     def __init__(self, main_window):
-        """Initializes the RenameManager with a reference to the main window.
+        """Initialize rename manager with main window reference.
 
         **Parameters:**
-            `main_window`: Reference to the main application window
+            `main_window`: Reference to main application window
 
         **Returns:**
             `None`
@@ -56,12 +58,10 @@ class RenameManager:
         self.table_manager = TableManager(main_window)
 
     def collect_cfg(self) -> RenameCfg:
-        """
-        Reads the current GUI and configuration values
-        and uses them to create a RenameCfg object for the renaming logic.
+        """Collect rename configuration from UI controls.
 
         **Returns:**
-            `RenameCfg`: Fully populated RenameCfg instance
+            `RenameCfg`: Configuration object with all rename settings
         """
         return RenameCfg(
             dt=self._collect_datetime_cfg(),
@@ -72,11 +72,10 @@ class RenameManager:
         )
 
     def _collect_datetime_cfg(self) -> DateTimeCfg:
-        """
-        Collects datetime configuration from GUI elements.
+        """Collect datetime configuration from UI controls.
 
         **Returns:**
-            `DateTimeCfg`: Configured DateTimeCfg instance
+            `DateTimeCfg`: Datetime configuration object
         """
         return DateTimeCfg(
             date_format=self.main_window.cmb_date.currentText(),
@@ -87,11 +86,10 @@ class RenameManager:
         )
 
     def _collect_counter_cfg(self) -> CounterCfg:
-        """
-        Collects counter configuration from GUI elements.
+        """Collect counter configuration from UI controls.
 
         **Returns:**
-            `CounterCfg`: Configured CounterCfg instance
+            `CounterCfg`: Counter configuration object
         """
         return CounterCfg(
             start=self.main_window.spin_start.value(),
@@ -101,13 +99,13 @@ class RenameManager:
         )
 
     def _collect_replace_cfg(self) -> ReplaceCfg | None:
-        """
-        Collects replace configuration from GUI elements.
+        """Collect replace configuration from UI controls.
 
         **Returns:**
-            `ReplaceCfg | None`: Configured ReplaceCfg instance or None if no search text
+            `ReplaceCfg | None`: Replace configuration object or None if no search text
         """
         if not self.main_window.edit_search.text():
+            # Return None if no search pattern is provided
             return None
 
         return ReplaceCfg(
@@ -121,11 +119,10 @@ class RenameManager:
         )
 
     def _collect_case_cfg(self) -> CaseCfg:
-        """
-        Collects case configuration from GUI elements.
+        """Collect case configuration from UI controls.
 
         **Returns:**
-            `CaseCfg`: Configured CaseCfg instance
+            `CaseCfg`: Case configuration object
         """
         return CaseCfg(
             mode=self.main_window.cmb_case.currentData() or UNCHANGED_CASE,
@@ -133,11 +130,10 @@ class RenameManager:
         )
 
     def _collect_mask_cfg(self) -> MaskCfg:
-        """
-        Collects mask configuration from GUI elements.
+        """Collect mask configuration from UI controls.
 
         **Returns:**
-            `MaskCfg`: Configured MaskCfg instance
+            `MaskCfg`: Mask configuration object
         """
         return MaskCfg(
             name_mask=self.main_window.edit_mask.text(),
@@ -145,68 +141,52 @@ class RenameManager:
         )
 
     def update_preview_now(self) -> None:
-        """
-        Creates preview names, checks their length/size depending on the platform,
-        and visually marks invalid entries.
-
-        Platform-dependent logic:
-            - Windows -> Character length (validate_path_length with platform='windows')
-            - Linux -> Byte size (validate_path_length with platform='linux')
-
-        Display:
-            - Invalid -> Text in red + italics
-            - Tooltip -> "<translated message> -> <name>"
+        """Update preview table with renamed filenames.
 
         **Returns:**
             `None`
         """
-        # get total number of rows in the preview table
         rowcount = self.main_window.table.rowCount()
         if rowcount == 0:
+            # Skip if no files in table
             return
 
-        # collect current rename configuration
+        # Collect configuration and generate preview names
         cfg = self.collect_cfg()
         paths = [Path(self.main_window.table.item(r, 0).data(Qt.UserRole)) for r in range(rowcount)]
         new_names = Renamer.preview_names(paths, cfg)
         
-        # Apply Linux-specific sanitization if needed
+        # Sanitize filenames for Linux
         if not self.helpers.is_windows():
             new_names = [Validator.sanitize_filename(name, linux_safe=True) for name in new_names]
 
+        # Update table with preview names and validation
         for r, new_name in enumerate(new_names):
-            # Check if original file item exists
             src_item = self.main_window.table.item(r, 0)
             if src_item is None:
-                continue  # Skip this row if original item is missing
+                continue
             
-            # Create or get preview item
             item = self.main_window.table.item(r, 1)
             if item is None:
-                # Create missing preview item
                 item = QTableWidgetItem('')
                 self.main_window.table.setItem(r, 1, item)
             item.setText(new_name)
 
-            # get base directory for current file
             src_full = Path(src_item.data(Qt.UserRole))
             base_dir = src_full.parent
 
-            # initialize validation state and message list
             invalid = False
             messages = []
 
-            # validate filename according to OS rules
             platform = 'windows' if self.helpers.is_windows() else 'linux'
             
-            # Validate filename content only if Windows-safe mode is enabled
-            # (otherwise illegal characters are allowed and will be handled by the OS)
+            # Validate filename for Windows
             if platform == 'windows' and cfg.case.windows_names:
                 if not Validator.validate_filename(new_name, windows_safe=True):
                     invalid = True
                     messages.append(self.helpers.tr('tooltips.table.filename_invalid_chars'))
             
-            # Validate path length according to OS limits
+            # Validate path length
             if not Validator.validate_path_length(base_dir, new_name, platform=platform):
                 invalid = True
                 if platform == 'windows':
@@ -214,175 +194,166 @@ class RenameManager:
                 else:
                     messages.append(self.helpers.tr('tooltips.table.filename_too_long_linux'))
 
-            # format tooltip and apply preview cell styling
             tooltip = self.table_manager.format_overlen_tooltip(messages)
             self.table_manager.style_preview_cell(item, invalid, tooltip, new_name)
 
     def open_in_editor(self) -> None:
-        """
-        Exports the current preview of the target names to a temporary text file,
-        opens it in the system editor, and allows manual editing.
-
-        After saving the text file, the list can be imported again.
+        """Open preview names in external editor for manual editing.
 
         **Returns:**
             `None`
         """
-        # Collect preview names and check if there are any files
         names = self._collect_preview_names()
         if not names:
+            # Skip if no names collected
             return
 
-        # Create temporary file and write preview names
         tmpfile = self._create_temp_file(names)
         if not tmpfile:
+            # Skip if temp file creation failed
             return
 
-        # Open file in system editor
         self._open_file_in_editor(tmpfile)
 
-        # Process the edited file
         self._process_edited_file(tmpfile, names)
 
     def _collect_preview_names(self) -> list[str]:
-        """
-        Collects the preview names from the table.
+        """Collect preview names from table.
 
         **Returns:**
-            `list[str]`: List of preview names, or empty list if no files.
+            `list[str]`: List of preview names
         """
         names = [self.main_window.table.item(r, 1).text() for r in range(self.main_window.table.rowCount())]
         if not names:
+            # Show info message if no files
             QMessageBox.information(self.main_window, self.helpers.tr('messages.info'),
                                     self.helpers.tr('messages.information.no_files'))
         return names
 
     def _create_temp_file(self, names: list[str]) -> Path | None:
-        """
-        Creates a temporary file and writes the preview names to it.
+        """Create temporary file with preview names.
 
         **Parameters:**
-            `names` (list[str]): List of preview names to write.
+            `names` (list[str]): List of names to write to temp file
 
         **Returns:**
-            `Path | None`: Path to the temporary file, or None if creation failed.
+            `Path | None`: Path to created temp file or None if failed
         """
         try:
-            # Determine the directory for the temp file
+            # Determine temp directory based on platform
             if self.helpers.is_windows():
-                # default temp directory (e.g., C:\Users\<Name>\AppData\Local\Temp)
                 tmpdir = Path(tempfile.gettempdir())
             else:
-                # directly in the user cache (~/.cache)
                 tmpdir = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
 
             tmpfile = tmpdir / f"bulkrename_preview_{os.getpid()}.txt"
 
-            # Create parent directory if it doesn't exist
+            # Create parent directories if needed
             tmpfile.parent.mkdir(parents=True, exist_ok=True)
 
-            # Write names to file
+            # Write names to temp file
             with tmpfile.open("w", encoding=ENCODING, newline="\n") as f:
                 for n in names:
                     f.write(n + "\n")
 
             return tmpfile
         except Exception as e:
+            # Show error if temp file creation fails
             QMessageBox.critical(self.main_window, self.helpers.tr('messages.error'),
                                 self.helpers.tr('messages.errors.temp_file_failed'))
             return None
 
     def _open_file_in_editor(self, tmpfile: Path) -> None:
-        """
-        Opens the temporary file in the system editor.
+        """Open temporary file in external editor.
 
         **Parameters:**
-            `tmpfile` (Path): Path to the temporary file to open.
+            `tmpfile` (Path): Path to temporary file to open
 
         **Returns:**
             `None`
         """
         try:
+            # Open file with default system editor
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(tmpfile)))
         except Exception:
+            # Show error if opening editor fails
             QMessageBox.critical(self.main_window, self.helpers.tr('messages.error'),
                                 self.helpers.tr('messages.errors.open_editor_failed'))
 
     def _process_edited_file(self, tmpfile: Path, original_names: list[str]) -> None:
-        """
-        Processes the edited file after the user has saved it.
+        """Process edited file and apply changes.
 
         **Parameters:**
-            `tmpfile` (Path): Path to the temporary file.
-            `original_names` (list[str]): Original list of preview names.
+            `tmpfile` (Path): Path to temporary file
+            `original_names` (list[str]): List of original names
 
         **Returns:**
             `None`
         """
         while True:
+            # Ask user if they want to load edited names
             if not self.helpers.question_box('messages.confirm', 'messages.questions.load_from_editor'):
                 self._cleanup_temp_file(tmpfile)
                 return
 
-            # Read processed lines
             lines = self._read_edited_lines(tmpfile)
             if lines is None:
+                # Skip if reading failed
                 return
 
-            # Check number of lines
             if not self._validate_line_count(lines, original_names, tmpfile):
-                # If validation fails, continue the loop to ask again
+                # Retry if line count validation fails
                 continue
 
-            # Success -> apply and cleanup
             self._apply_edited_names(lines)
             self._cleanup_temp_file(tmpfile)
             return
 
     def _read_edited_lines(self, tmpfile: Path) -> list[str] | None:
-        """
-        Reads the edited lines from the temporary file.
+        """Read edited lines from temporary file.
 
         **Parameters:**
-            `tmpfile` (Path): Path to the temporary file.
+            `tmpfile` (Path): Path to temporary file
 
         **Returns:**
-            `list[str] | None`: List of edited lines, or None if reading failed.
+            `list[str] | None`: List of lines or None if failed
         """
         try:
+            # Read all lines from temp file
             with tmpfile.open('r', encoding=ENCODING) as f:
                 lines = f.readlines()
             return self._process_file_lines(lines)
         except Exception:
+            # Show error if reading fails
             QMessageBox.critical(self.main_window, self.helpers.tr('messages.error'),
                                 self.helpers.tr('messages.errors.read_failed'))
             return None
 
     def _process_file_lines(self, lines: list[str]) -> list[str]:
-        """
-        Processes raw file lines by stripping line endings.
+        """Process file lines by stripping line endings.
 
         **Parameters:**
-            `lines` (list[str]): Raw lines from file.
+            `lines` (list[str]): List of raw lines from file
 
         **Returns:**
-            `list[str]`: Processed lines with stripped endings.
+            `list[str]`: List of processed lines
         """
+        # Strip line endings from each line
         return [ln.rstrip('\r\n') for ln in lines]
 
     def _validate_line_count(self, lines: list[str], original_names: list[str], tmpfile: Path) -> bool:
-        """
-        Validates that the number of lines in the edited file matches the original.
+        """Validate that line count matches original names.
 
         **Parameters:**
-            `lines` (list[str]): List of edited lines.
-            `original_names` (list[str]): Original list of preview names.
-            `tmpfile` (Path): Path to the temporary file.
+            `lines` (list[str]): List of edited lines
+            `original_names` (list[str]): List of original names
+            `tmpfile` (Path): Path to temporary file
 
         **Returns:**
-            `bool`: True if validation passed, False otherwise.
+            `bool`: True if validation passes, False otherwise
         """
         if len(lines) != len(original_names):
+            # Show warning if line count mismatch
             mbox = QMessageBox(self.main_window)
             mbox.setIcon(QMessageBox.Warning)
             mbox.setWindowTitle(self.helpers.tr('messages.error'))
@@ -392,83 +363,78 @@ class RenameManager:
             mbox.exec()
 
             if mbox.clickedButton() == reopen:
-                # Reopen file and continue the loop to ask again
+                # Reopen editor if user wants to fix
                 self._open_file_in_editor(tmpfile)
                 return False
             else:
+                # Clean up and cancel if user cancels
                 self._cleanup_temp_file(tmpfile)
                 return False
 
         return True
 
     def _apply_edited_names(self, lines: list[str]) -> None:
-        """
-        Applies the edited names to the table.
+        """Apply edited names to preview table.
 
         **Parameters:**
-            `lines` (list[str]): List of edited names.
+            `lines` (list[str]): List of edited names
 
         **Returns:**
             `None`
         """
+        # Update each row in table with edited name
         for r, val in enumerate(lines):
             self.main_window.table.item(r, 1).setText(val)
 
     def _cleanup_temp_file(self, tmpfile: Path) -> None:
-        """
-        Cleans up the temporary file.
+        """Clean up temporary file.
 
         **Parameters:**
-            `tmpfile` (Path): Path to the temporary file.
+            `tmpfile` (Path): Path to temporary file to clean up
 
         **Returns:**
             `None`
         """
         try:
+            # Delete temp file if it exists
             tmpfile.unlink(missing_ok=True)
         except Exception:
+            # Ignore cleanup errors
             pass
 
     def perform_rename(self) -> None:
-        """
-        Performs the renaming process based on the current preview.
-
-        - Reads all source and target names from the table.
-        - Validates user confirmation, missing sources, and naming conflicts.
-        - Executes the renames via `perform_rename()` (renamer.py).
-        - Stores all successful rename pairs in the in-memory undo stack
-        to allow multi-level undo within the current session.
-        - Updates the table entries, resets input fields, and refreshes the preview.
+        """Perform the actual file renaming operation.
 
         **Returns:**
             `None`
         """
         rows = self.main_window.table.rowCount()
 
-        # abort if any filename exceeds the allowed length (validation failed)
+        # Check for potential issues before renaming
         if not self.precheck_rename_block_on_overlength():
             return
 
-        # abort and show info message if there are no files in the table
         if rows == 0:
+            # Show info if no files to rename
             QMessageBox.information(
                 self.main_window, self.helpers.tr('messages.info'),
                 self.helpers.tr('messages.information.no_files_for_rename')
             )
             return
 
-        # confirm rename operation
+        # Confirm rename operation with user
         if not self.helpers.question_box('messages.confirm', 'messages.questions.confirm_rename'):
             return
 
-        # build planned rename operations from table entries
+        # Collect current paths and new names
         paths = [Path(self.main_window.table.item(r, 0).data(Qt.UserRole)) for r in range(rows)]
         new_names = [self.main_window.table.item(r, 1).text() for r in range(rows)]
         plan = Renamer.plan_moves(paths, new_names)
 
-        # check if any actual rename would happen
+        # Filter out no-op renames
         effective = [(src, dst) for src, dst in plan if src.name != dst.name]
         if not effective:
+            # Show info if no actual renames needed
             QMessageBox.information(
                 self.main_window,
                 self.helpers.tr('messages.info'),
@@ -476,13 +442,13 @@ class RenameManager:
             )
             return
 
-        # conflicts
+        # Check for conflicts
         conflicts = Validator.check_conflicts(effective)
         if conflicts:
             self.show_conflicts(conflicts)
             return
 
-        # source not found
+        # Check for missing source files
         missing = [str(src) for src, _ in effective if not src.exists()]
         if missing:
             QMessageBox.critical(
@@ -492,28 +458,22 @@ class RenameManager:
             )
             return
 
-        # perform the actual renaming operation and collect any errors
+        # Perform the actual rename operation
         errors = Renamer.perform_rename(effective)
 
-        # if errors occurred during renaming, show an error dialog and abort
         if errors:
+            # Show errors if rename failed
             QMessageBox.critical(
                 self.main_window, self.helpers.tr('messages.error'),
                 self.helpers.tr('messages.errors.rename_failed') + '\n\n' + '\n\n'.join(errors)
             )
             return
 
-        # remembering moves for undo
+        # Update undo stack and UI state
         self.main_window._undo_stack.append(effective)
         self.update_undo_state()
 
-        # confirmation dialog
-        # QMessageBox.information(
-        #     self.main_window, self.helpers.tr('messages.info'),
-        #     self.helpers.tr('messages.confirmation.rename_done')
-        # )
-
-        # update table
+        # Update table with new filenames
         for r in range(self.main_window.table.rowCount()):
             old_item = self.main_window.table.item(r, 0)
             full = Path(old_item.data(Qt.UserRole))
@@ -523,60 +483,52 @@ class RenameManager:
             old_item.setToolTip(str(new_full))
             old_item.setData(Qt.UserRole, str(new_full))
 
-        # refresh preview after table changes
+        # Reset UI and update preview
         self.helpers.reset_text_fields()
         self.table_manager.update_preview_later()
 
     def show_conflicts(self, conflicts: list[str]) -> None:
-        """
-        Displays a scrollable error message with all name conflicts found.
+        """Show conflicts dialog with detailed conflict information.
 
         **Parameters:**
-            `list[str]`: List of conflicting file names.
+            `conflicts` (list[str]): List of conflict descriptions
 
         **Returns:**
             `None`
         """
+        # Create and configure conflict dialog
         box = QMessageBox(self.main_window)
         box.setIcon(QMessageBox.Critical)
         box.setWindowTitle(self.helpers.tr('messages.error'))
         box.setText(self.helpers.tr('messages.errors.conflicts_found'))
 
-        # scrollable text area
+        # Create text area for conflict details
         text_area = QPlainTextEdit()
         text_area.setReadOnly(True)
         text_area.setPlainText('\n\n'.join(conflicts))
         text_area.setMinimumSize(500, 250)
         text_area.setStyleSheet('QPlainTextEdit { background: palette(base); }')
 
-        # embed widget in message box
+        # Add text area to dialog layout
         layout = box.layout()
         layout.addWidget(text_area, 1, 0, 1, layout.columnCount())
 
+        # Add OK button
         box.addButton(self.helpers.tr('dialogs.buttons.ok'), QMessageBox.AcceptRole)
 
         box.exec()
 
     def precheck_rename_block_on_overlength(self) -> bool:
-        """
-        Checks whether at least one new name in the preview exceeds the permitted
-        length/byte limits (platform-dependent).
-
-        Platform logic:
-            - Windows: validate_path_length with platform='windows' (character/path limits)
-            - Linux:   validate_path_length with platform='linux'   (byte limits NAME_MAX/PATH_MAX)
-
-        If at least one entry is too long, a warning dialog is displayed
-        and renaming is prevented.
+        """Pre-check rename operation for potential issues.
 
         **Returns:**
-            `bool`:
-            - True = all names are valid -> renaming allowed.
-            - False = at least one name too long -> renaming blocked.
+            `bool`: True if pre-check passes, False if issues found
         """
         if not self._has_table_rows():
+            # Skip validation if no rows
             return True
 
+        # Validate each row in table
         for r in range(self.main_window.table.rowCount()):
             if not self._validate_table_row(r):
                 return False
@@ -584,64 +536,61 @@ class RenameManager:
         return True
 
     def _has_table_rows(self) -> bool:
-        """
-        Checks if the table has any rows.
+        """Check if table has any rows.
 
         **Returns:**
-            `bool`: True if table has rows, False otherwise.
+            `bool`: True if table has rows, False otherwise
         """
         return self.main_window.table.rowCount() > 0
 
     def _validate_table_row(self, row: int) -> bool:
-        """
-        Validates a single table row for name length constraints.
+        """Validate a specific table row.
 
         **Parameters:**
-            `row` (int): Row index to validate.
+            `row` (int): Row index to validate
 
         **Returns:**
-            `bool`: True if row is valid, False otherwise.
+            `bool`: True if row is valid, False otherwise
         """
         item_src = self.main_window.table.item(row, 0)
         item_new = self.main_window.table.item(row, 1)
         
         if not item_src or not item_new:
+            # Skip validation if items are missing
             return True
 
+        # Get base directory and new name for validation
         base_dir = Path(item_src.data(Qt.UserRole)).parent
         new_name = item_new.text()
         
         return self._validate_name_length(base_dir, new_name)
 
     def _validate_name_length(self, base_dir: Path, new_name: str) -> bool:
-        """
-        Validates a name against platform-specific length constraints.
+        """Validate filename length and characters.
 
         **Parameters:**
-            `base_dir` (Path): Base directory path.
-            `new_name` (str): New filename to validate.
+            `base_dir` (Path): Base directory path
+            `new_name` (str): New filename to validate
 
         **Returns:**
-            `bool`: True if name is valid, False otherwise.
+            `bool`: True if validation passes, False otherwise
         """
         platform = 'windows' if self.helpers.is_windows() else 'linux'
         
-        # Validate filename content only if Windows-safe mode is enabled
-        # (otherwise illegal characters are allowed and will be handled by the OS)
+        # Validate filename characters for Windows
         if platform == 'windows' and cfg.case.windows_names:
             if not Validator.validate_filename(new_name, windows_safe=True):
                 self._show_invalid_chars_warning()
                 return False
         
-        # Validate path length according to OS limits
+        # Validate path length
         if not Validator.validate_path_length(base_dir, new_name, platform=platform):
             self._show_name_too_long_warning()
             return False
         return True
 
     def _show_name_too_long_warning(self) -> None:
-        """
-        Shows a warning dialog for names that are too long.
+        """Show warning for filename too long.
 
         **Returns:**
             `None`
@@ -653,8 +602,7 @@ class RenameManager:
         )
 
     def _show_invalid_chars_warning(self) -> None:
-        """
-        Shows a warning dialog for invalid characters in filenames.
+        """Show warning for invalid characters in filename.
 
         **Returns:**
             `None`
@@ -666,211 +614,197 @@ class RenameManager:
         )
 
     def perform_undo(self) -> None:
-        """
-        Reverts the most recent rename operation stored in the undo stack.
-
-        - Retrieves the latest rename list from the in-memory stack.
-        - Checks for missing targets and potential naming conflicts.
-        - Calls `undo_moves()` (renamer.py) to restore original names.
-        - Removes the reverted step from the undo stack upon success.
-        - Updates the table, preview, and Undo button state.
-
-        **Note:**
-        Undo steps are stored only in memory and are lost when the program exits!
+        """Perform undo operation to revert file renames.
 
         **Returns:**
             `None`
         """
-        # if there are no undo steps available
         if not self.main_window._undo_stack:
+            # Show info if no undo available
             QMessageBox.information(
                 self.main_window, self.helpers.tr('messages.info'),
                 self.helpers.tr('messages.information.no_undo')
             )
             return
 
+        # Confirm undo operation with user
         if not self.helpers.question_box('messages.confirm', 'messages.questions.confirm_undo'):
             return
 
-        # get the last rename operation from the undo stack
+        # Get last rename operation from stack
         moves = self.main_window._undo_stack[-1]
 
-        # try to revert all previously renamed files
+        # Attempt to undo the rename operation
         missing, errors = Renamer.undo_moves(moves)
 
-        # show error if some original source files are missing
         if missing:
+            # Show error if source files are missing
             QMessageBox.critical(
                 self.main_window, self.helpers.tr('messages.error'),
                 self.helpers.tr('messages.errors.missing_sources_undo') + '\n\n' + '\n'.join(missing)
             )
             return
 
-        # show error if undo operation failed for any file
         if errors:
+            # Show error if undo failed
             QMessageBox.critical(
                 self.main_window, self.helpers.tr('messages.error'),
                 self.helpers.tr('messages.errors.undo_failed') + '\n\n' + '\n'.join(errors)
             )
             return
 
-        # successful -> actually remove step from stack
+        # Remove completed undo from stack
         self.main_window._undo_stack.pop()
 
+        # Show success message
         QMessageBox.information(
             self.main_window, self.helpers.tr('messages.info'),
             self.helpers.tr('messages.confirmation.undo_done')
         )
 
-        # reset table based on moves (new -> old)
+        # Update table with reverted filenames
         mapping = {str(dst): str(src) for (src, dst) in moves}
         for row in range(self.main_window.table.rowCount()):
             item = self.main_window.table.item(row, 0)
             cur_path = str(Path(item.data(Qt.UserRole)))
             if cur_path in mapping:
+                # Revert to original filename
                 old_full = Path(mapping[cur_path])
                 item.setData(Qt.UserRole, str(old_full))
                 item.setText(old_full.name)
                 item.setToolTip(str(old_full))
             else:
+                # Keep current filename if not in mapping
                 p = Path(item.data(Qt.UserRole))
                 item.setText(p.name)
                 item.setToolTip(str(p))
 
+        # Reset UI and update state
         self.helpers.reset_text_fields()
         self.update_undo_state()
         self.table_manager.update_preview_later()
 
     def invalidate_undo_with_prompt(self) -> bool:
-        """
-        If there are undo steps, the user is asked whether they should be
-        discarded when removing/emptying. If agreed, empties the undo stack
-        and updates the button state.
+        """Invalidate undo stack with user confirmation.
 
         **Returns:**
-            bool: True = continue execution; False = cancel operation.
+            `bool`: True if undo stack was invalidated or empty, False if user cancelled
         """
         if self.main_window._undo_stack:
+            # Ask user to confirm undo stack invalidation
             if not self.helpers.question_box('messages.confirm', 'messages.questions.invalidate_undo'):
                 return False
 
+            # Clear undo stack and update UI
             self.main_window._undo_stack.clear()
             self._update_undo_state()
         return True
 
     def update_undo_state(self) -> None:
-        """
-        Updates the enabled state of the Undo button.
-
-        Enables the Undo button only if the in-memory undo stack
-        contains at least one reversible rename step.
+        """Update undo button state based on undo stack.
 
         **Returns:**
             `None`
         """
+        # Enable undo button if stack has items
         self.main_window.btn_undo.setEnabled(bool(self.main_window._undo_stack))
 
     def handle_config_change(self, section: str, key: str, value) -> None:
-        """
-        Writes a changed setting to the configuration
-        and then triggers a delayed preview update.
+        """Handle configuration changes.
 
         **Parameters:**
-            `section` (str): Configuration section name
-            `key` (str): Option key within the section
-            `value` (Any): New value to write
+            `section` (str): Configuration section
+            `key` (str): Configuration key
+            `value`: Configuration value
 
         **Returns:**
             `None`
         """
+        # Save configuration and update preview
         set_cfg(section, key, value)
         self.table_manager.update_preview_later()
 
     def reset_all_settings(self) -> None:
-        """
-        Resets all settings to factory defaults and restarts the main window.
-
-        Displays a confirmation prompt beforehand and writes the
-        default values from DEFAULTS (`settings.py`) to the configuration file.
+        """Reset all application settings to defaults.
 
         **Returns:**
             `None`
         """
+        # Confirm reset with user
         if not self.helpers.question_box('messages.confirm', 'messages.questions.reset_settings'):
             return
 
+        # Reset configuration
         reset_config(autodetect_language=True)
 
+        # Show confirmation and restart
         QMessageBox.information(
             self.main_window, self.helpers.tr('messages.info'), self.helpers.tr('messages.confirmation.settings_reset'))
         self.helpers.restart_window()
 
     def action_open_files(self) -> None:
-        """
-        Opens a file dialog for selecting one or more files
-        and then imports them into the table.
+        """Open file dialog to select files for renaming.
 
         **Returns:**
             `None`
         """
+        # Show file open dialog
         files, _ = QFileDialog.getOpenFileNames(
             self.main_window, self.helpers.tr('dialogs.open_files'), str(Path.home()), self.helpers.tr('dialogs.file_types')
         )
 
+        # Import selected files
         if files:
             self.import_from_paths(files)
 
     def action_open_folder(self) -> None:
-        """
-        Opens a dialog for selecting a directory
-        and imports all files contained therein into the table.
+        """Open folder dialog to select folder for renaming.
 
         **Returns:**
             `None`
         """
+        # Show folder open dialog
         folder = QFileDialog.getExistingDirectory(
             self.main_window, self.helpers.tr('dialogs.open_folder'), str(Path.home()),
             options=QFileDialog.ShowDirsOnly
         )
 
+        # Import selected folder
         if folder:
             self.import_from_paths([folder])
 
     def import_from_paths(self, paths: list[str]) -> None:
-        """
-        Imports files from the specified paths or directories.
-
-        Depending on the settings, filters hidden files,
-        sorts the list naturally (e.g., A2 before A10), and fills the table
-        with the files found.
+        """Import files from given paths.
 
         **Parameters:**
-            `paths` (list[str]): List of file or directory paths
+            `paths` (list[str]): List of file/folder paths to import
 
         **Returns:**
             `None`
         """
+        # Clear existing table
         self.table_manager.clear_table()
 
-        # Collect all valid files from the given paths (respecting hidden-file settings)
+        # Configure import options
         opts = ImportOptions(
             allow_files=True,
             allow_dirs=True,
             include_hidden=self.main_window.act_hidden.isChecked()
         )
 
+        # Collect and filter files
         items = Importer.collect(paths, opts)
         files = [it.path for it in items if not it.is_dir]
 
-        # natural sorting by file name
+        # Sort files naturally (with number support)
         files.sort(key=lambda p: [int(t) if t.isdigit() else t.lower()
                                     for t in re.split(r'(\d+)', p.name)])
 
-        # fill in the table
+        # Add files to table efficiently
         self.main_window.table.setUpdatesEnabled(False)
         for f in files:
             self.table_manager.table_add_entry(f)
         self.main_window.table.setUpdatesEnabled(True)
 
-        # refresh preview
+        # Update preview after import
         self.table_manager.update_preview_later()

@@ -4,10 +4,10 @@
 # © 2026–present Codemorra (Christopher Kranz)
 # Licensed under the MIT License (see LICENSE file)
 
-"""
-GUI module for Bulk Rename Py.
+"""Table manager module for Bulk Rename Py.
 
-Provides the main window with all GUI functions.
+Handles table operations including drag-and-drop, resizing, preview updates,
+and table cell management for the file renaming interface.
 """
 
 from __future__ import annotations
@@ -27,15 +27,17 @@ INVALID_COLOR = QColor(Qt.red)
 
 
 class TableManager:
-    """
-    Manages the table behavior and operations.
+    """Table manager class for Bulk Rename Py.
+
+    Handles table operations including drag-and-drop, resizing, preview updates,
+    and table cell management for the file renaming interface.
     """
 
     def __init__(self, main_window):
-        """Initializes the TableManager with a reference to the main window.
+        """Initialize table manager with main window reference.
 
         **Parameters:**
-            `main_window`: Reference to the main application window
+            `main_window`: Reference to main application window
 
         **Returns:**
             `None`
@@ -44,118 +46,106 @@ class TableManager:
         self.helpers = GUIHelpers(main_window)
 
     def format_overlen_tooltip(self, messages: list[str]) -> str:
-        """
-        Adjusts the tooltip for files whose names are too long.
+        """Format tooltip text from list of messages.
 
         **Parameters:**
-            `messages` (list[str]): List of translated messages
+            `messages` (list[str]): List of message strings
 
         **Returns:**
-            `str`: Combined tooltip text
+            `str`: Formatted tooltip text
         """
+        # Join non-empty messages with separator
         msgs = ' / '.join(m for m in messages if m)
 
         return f'{msgs} ' if msgs else ''
 
     def style_preview_cell(self, item, invalid: bool, tooltip_text: str, fallback_name: str) -> None:
-        """
-        Formats a preview cell in the table widget.
-
-        Behavior:
-        - If length/size is invalid: Text in red + italics
-        - Tooltip shows "<message>"
-        - If valid: Standard color + tooltip = file name
+        """Style preview table cell based on validation status.
 
         **Parameters:**
-            `item` (QTableWidgetItem): Cell in the preview table.
-            `invalid` (bool): True = invalid, False = valid.
-            `tooltip_text` (str): Tooltip text in case of error.
-            `fallback_name` (str): Tooltip text in case of valid name.
+            `item`: Table item to style
+            `invalid` (bool): Whether item is invalid
+            `tooltip_text` (str): Tooltip text for invalid items
+            `fallback_name` (str): Fallback tooltip text
 
         **Returns:**
             `None`
         """
-        # set italic font if invalid, normal otherwise
+        # Set italic font for invalid items
         f = item.font()
         f.setItalic(bool(invalid))
         item.setFont(f)
 
-        # apply red text color and error tooltip if invalid
         if invalid:
+            # Style invalid items with red text and error tooltip
             item.setForeground(QBrush(INVALID_COLOR))
             item.setToolTip(tooltip_text or fallback_name)
         else:
-            # reset to default color and show normal tooltip
+            # Style valid items with default text and normal tooltip
             item.setForeground(QBrush())
             item.setToolTip(fallback_name)
 
     def update_preview_later(self) -> None:
-        """
-        Starts a short timer to delay the preview update.
+        """Schedule preview update with delay.
 
         **Returns:**
             `None`
         """
+        # Start timer for delayed preview update
         self.main_window._update_timer.start(PREVIEW_DELAY_MS)
 
     def eventFilter(self, obj, ev):
-        """
-        Intercepts resize and drag & drop events for the table.
-        (Qt event handler)
-
-        - **Resize (Viewport)**: keeps column ratios stable.
-        - **DragEnter/DragMove (Table/Viewport)**: allows local files/folders to be dropped.
-        - **Drop (Table/Viewport)**: extracts local paths and calls the import logic.
-        - Other events are passed to the default handler.
+        """Event filter for table events.
 
         **Parameters:**
-            `obj`: Observed object (e.g., table viewport)
-            `ev`: Triggered event
+            `obj`: Object receiving the event
+            `ev`: Event object
 
         **Returns:**
-            `bool`: True if the event has been fully handled; otherwise False, so that further processing is possible.
+            `bool`: True if event was handled, False otherwise
         """
-        # viewport resize
+        # Handle resize events
         if obj is self.main_window.table.viewport() and ev.type() == QEvent.Resize:
             return self._handle_resize_event(ev)
 
-        # drag & drop handling
+        # Skip events for non-table objects
         if obj not in (self.main_window.table, self.main_window.table.viewport()):
             return super(type(self.main_window), self.main_window).eventFilter(obj, ev)
 
-        # handle drag & drop events
+        # Handle drag enter/move events
         if ev.type() in (QEvent.DragEnter, QEvent.DragMove):
             return self._handle_drag_enter_event(ev)
 
+        # Handle drop events
         if ev.type() == QEvent.Drop:
             return self._handle_drop_event(ev)
 
-        # forward all other events as normal
+        # Pass unhandled events to parent
         return super(type(self.main_window), self.main_window).eventFilter(obj, ev)
 
     def _handle_resize_event(self, ev) -> bool:
-        """
-        Handles viewport resize events.
+        """Handle table resize events.
 
         **Parameters:**
             `ev`: Resize event
 
         **Returns:**
-            `bool`: False to allow further processing
+            `bool`: False to allow event propagation
         """
+        # Rebalance columns on resize
         self.rebalance_on_view_resize()
         return False
 
     def _handle_drag_enter_event(self, ev) -> bool:
-        """
-        Handles drag enter/move events.
+        """Handle drag enter events for table.
 
         **Parameters:**
-            `ev`: Drag event
+            `ev`: Drag enter event
 
         **Returns:**
-            `bool`: True if event was handled, False otherwise
+            `bool`: True if drag is accepted, False otherwise
         """
+        # Accept drag if it contains URLs
         mime_data = ev.mimeData()
         if mime_data and mime_data.hasUrls():
             ev.acceptProposedAction()
@@ -163,37 +153,38 @@ class TableManager:
         return False
 
     def _handle_drop_event(self, ev) -> bool:
-        """
-        Handles drop events.
+        """Handle drop events for table.
 
         **Parameters:**
             `ev`: Drop event
 
         **Returns:**
-            `bool`: True if event was handled, False otherwise
+            `bool`: True if drop was handled, False otherwise
         """
+        # Extract local file paths from drop data
         mime_data = ev.mimeData()
         urls = mime_data.urls() if mime_data else []
         paths = [u.toLocalFile() for u in urls if u.isLocalFile()]
 
+        # Process dropped paths if any
         if paths:
             return self._process_dropped_paths(paths, ev)
         return False
 
     def _process_dropped_paths(self, paths: list[str], ev) -> bool:
-        """
-        Processes dropped paths and imports them.
+        """Process dropped file paths.
 
         **Parameters:**
-            `paths`: List of dropped file paths
+            `paths` (list[str]): List of dropped file paths
             `ev`: Drop event
 
         **Returns:**
-            `bool`: True if import was successful, False otherwise
+            `bool`: True if processing was successful
         """
-        # prevent multiple directories
+        # Check for multiple directories
         dir_count = sum(1 for p in paths if Path(p).is_dir())
         if dir_count > 1:
+            # Show warning for multiple directories
             QMessageBox.warning(
                 self.main_window,
                 self.main_window._tr('messages.info'),
@@ -202,165 +193,150 @@ class TableManager:
             ev.ignore()
             return True
 
+        # Accept the drop action
         ev.setDropAction(Qt.CopyAction)
         ev.accept()
-        # Import locally to avoid circular import
         from .rename_manager import RenameManager
+        # Import paths using rename manager
         rename_manager = RenameManager(self.main_window)
         rename_manager.import_from_paths(paths)
         return True
 
     def init_equal_columns(self) -> None:
-        """
-        Initializes the table with a width ratio of 50/50.
-
-        Takes into account the minimum assigned width when changing the column width.
+        """Initialize table columns with equal widths.
 
         **Returns:**
             `None`
         """
+        # Get viewport width and calculate initial column widths
         viewport_width = self.main_window.table.viewport().width()
         left_width = max(self.main_window._min_left, viewport_width // 2)
         right_width = max(self.main_window._min_right, viewport_width - left_width)
 
-        # if the sum is greater than viewport_width due to minima -> clamp
+        # Adjust widths if they exceed viewport
         if left_width + right_width > viewport_width:
-            # preferably leave the left column at minimum width
             left_width = max(self.main_window._min_left, min(left_width, viewport_width - self.main_window._min_right))
             right_width = viewport_width - left_width
 
+        # Apply calculated widths
         self.set_columns(left_width, right_width)
 
     def set_columns(self, left_width: int, right_width: int) -> None:
-        """
-        Sets the widths of both columns in a signal-friendly manner.
-
-        Temporarily blocks all signals to prevent infinite loops when manually
-        or programmatically adjusting column widths.
+        """Set table column widths.
 
         **Parameters:**
-            `left_width` (int): New width of the left column
-            `right_width` (int): New width of the right column
+            `left_width` (int): Width for left column
+            `right_width` (int): Width for right column
 
         **Returns:**
             `None`
         """
+        # Temporarily block signals to prevent unnecessary updates
         self.main_window.table.blockSignals(True)
         self.main_window.table.setColumnWidth(0, left_width)
         self.main_window.table.setColumnWidth(1, right_width)
         self.main_window.table.blockSignals(False)
 
     def on_header_resized(self, logical_index: int, _old: int, new_width: int) -> None:
-        """
-        Responds to user resizing of a column and dynamically adjusts the other column.
-
-        Ensures that:
-        - the total width of the columns matches the viewport width
-        - the other column fills the remaining space
-        - minimum widths are maintained
-        - no horizontal scroll bar appears
+        """Handle column header resize events.
 
         **Parameters:**
-            `logical_index` (int): Index of the changed column (0 = left, 1 = right)
-            `_old` (int): Old width (not used)
-            `new_width` (int): New width of the changed column
+            `logical_index` (int): Index of resized column
+            `_old` (int): Old width (unused)
+            `new_width` (int): New width
 
         **Returns:**
             `None`
         """
+        # Only handle left and right columns
         if logical_index not in (0, 1):
             return
 
+        # Get current viewport width
         viewport_width = self.main_window.table.viewport().width()
 
+        # Calculate new column widths based on which column was resized
         if logical_index == 0:
             left_width, right_width = self._calculate_column_widths(new_width, viewport_width, is_left_column=True)
         else:
             left_width, right_width = self._calculate_column_widths(new_width, viewport_width, is_left_column=False)
 
+        # Apply new widths
         self.set_columns(left_width, right_width)
 
     def _calculate_column_widths(self, changed_width: int, viewport_width: int, is_left_column: bool) -> tuple[
         int, int]:
-        """
-        Calculates new column widths while respecting minimum width constraints.
+        """Calculate new column widths after resize.
 
         **Parameters:**
-            `changed_width` (int): New width of the changed column
-            `viewport_width` (int): Total available width
-            `is_left_column` (bool): True if left column was changed, False for right
+            `changed_width` (int): Width of changed column
+            `viewport_width` (int): Total viewport width
+            `is_left_column` (bool): True if left column was resized
 
         **Returns:**
-            `tuple[int, int]`: (left_column_width, right_column_width)
+            `tuple[int, int]`: Tuple of (left_width, right_width)
         """
+        # Get minimum column widths
         min_left = self.main_window._min_left
         min_right = self.main_window._min_right
 
+        # Calculate widths based on which column was resized
         if is_left_column:
-            # clamp new left width, right fills remainder (>= min)
             left_width = max(min_left, min(changed_width, viewport_width - min_right))
             right_width = max(min_right, viewport_width - left_width)
         else:
-            # clamp new right width, left fills remainder (>= min)
             right_width = max(min_right, min(changed_width, viewport_width - min_left))
             left_width = max(min_left, viewport_width - right_width)
 
         return left_width, right_width
 
     def rebalance_on_view_resize(self) -> None:
-        """
-        Maintains the current ratio of column widths when resizing a window or table.
-
-        If one column reaches its minimum width, only the other column is adjusted.
-        The ratio is calculated from the current widths and transferred proportionally
-        to the new viewport width.
+        """Rebalance column widths when viewport is resized.
 
         **Returns:**
             `None`
         """
+        # Get current viewport width
         viewport_width = self.main_window.table.viewport().width()
         if viewport_width <= 0:
             return
 
+        # Get current column widths
         left_width = self.main_window.table.columnWidth(0)
         right_width = self.main_window.table.columnWidth(1)
         total_width = left_width + right_width if (left_width + right_width) > 0 else viewport_width
 
-        # current ratio (e.g., 50/50 initially, otherwise user status)
+        # Calculate new widths maintaining ratio
         left_ratio = left_width / total_width
-        # new target widths
         new_left_width = int(round(viewport_width * left_ratio))
-        # clamp left: not smaller than min & not so large that right < min
         new_left_width = max(self.main_window._min_left,
                              min(new_left_width, viewport_width - self.main_window._min_right))
         new_right_width = viewport_width - new_left_width
 
-        # if rounding would result in a value less than min, adjust again.
+        # Ensure minimum widths are respected
         if new_right_width < self.main_window._min_right:
             new_right_width = self.main_window._min_right
             new_left_width = viewport_width - new_right_width
             new_left_width = max(self.main_window._min_left, new_left_width)
 
+        # Apply new widths
         self.set_columns(new_left_width, new_right_width)
 
     def table_add_entry(self, p: Path) -> None:
-        """
-        Adds a new row to the table for the specified file.
-
-        Creates cells for the current and new names and saves the full
-        path as tooltip and UserRole data.
+        """Add file entry to table.
 
         **Parameters:**
-            `p` (Path): Full path to the file
+            `p` (Path): Path to file to add
 
         **Returns:**
             `None`
         """
         try:
-            # determine the next available row index
+            # Add new row to table
             row = self.main_window.table.rowCount()
             self.main_window.table.insertRow(row)
         except Exception as e:
+            # Show warning if table addition fails
             QMessageBox.warning(
                 self.main_window,
                 self.helpers.tr('messages.warning'),
@@ -368,96 +344,86 @@ class TableManager:
             )
             return
 
-        # create table item for the current filename
+        # Create and configure current name item
         current_name = QTableWidgetItem(p.name)
         current_name.setToolTip(str(p))
         current_name.setData(Qt.UserRole, str(p))
 
-        # create empty cell for the new (renamed) filename
+        # Create empty new name item
         new_name = QTableWidgetItem('')
 
-        # insert both items into the table
+        # Add items to table
         self.main_window.table.setItem(row, 0, current_name)
         self.main_window.table.setItem(row, 1, new_name)
 
     def clear_table(self) -> None:
-        """
-        Deletes all rows from the file table and removes markings.
-
-        If an undo is available, a warning is displayed beforehand and, if confirmed,
-        the undo stack is emptied (the undo button is deactivated).
+        """Clear all entries from table.
 
         **Returns:**
             `None`
         """
-        # only ask if there is anything to delete
+        # Check if undo stack needs to be cleared
         if self.main_window.table.rowCount() > 0:
-            # warn/ask only if undo is available
             if self.main_window._undo_stack:
                 if not self.helpers.question_box('messages.confirm', 'messages.questions.invalidate_undo'):
                     return
                 self.main_window._undo_stack.clear()
 
+        # Clear table and reset UI
         self.main_window.table.setRowCount(0)
         self.main_window.table.clearSelection()
         self.helpers.reset_text_fields()
 
     def table_context_menu(self, pos) -> None:
-        """
-        Opens a context menu at the specified position in the table.
-
-        Allows selected rows to be removed by right-clicking.
+        """Show context menu for table.
 
         **Parameters:**
-            `pos` (QPoint): Position of the mouse click relative to the table
+            `pos`: Position where context menu was requested
 
         **Returns:**
             `None`
         """
+        # Get index at click position
         index = self.main_window.table.indexAt(pos)
 
-        # do nothing if the click was outside any valid row
         if not index.isValid():
             return
 
-        # select the clicked row if it was not already selected
+        # Select row if not already selected
         if not self.main_window.table.selectionModel().isSelected(index):
             self.main_window.table.clearSelection()
             self.main_window.table.selectRow(index.row())
 
-        # create context menu with 'Remove' action
+        # Create and show context menu
         menu = QMenu(self.main_window)
         act_remove = menu.addAction(self.main_window._tr('context_menu.remove'))
 
-        # execute the menu and handle selected action
         chosen = menu.exec(self.main_window.table.viewport().mapToGlobal(pos))
         if chosen == act_remove:
+            # Remove selected rows if remove action was chosen
             self._remove_selected_rows()
 
     def remove_selected_rows(self) -> None:
-        """
-        Removes the selected lines and updates the preview.
-
-        If an undo is available, a warning is displayed beforehand and, if confirmed,
-        the undo stack is cleared (the undo button is deactivated).
+        """Remove selected rows from table.
 
         **Returns:**
             `None`
         """
+        # Get selected rows
         sel_row = self.main_window.table.selectionModel().selectedRows()
         if not sel_row:
             return
 
-        # warn/ask only if undo is available
+        # Check if undo stack needs to be cleared
         if self.main_window._undo_stack:
             if not self.helpers.question_box('messages.confirm', 'messages.questions.invalidate_undo'):
                 return
             self.main_window._undo_stack.clear()
 
+        # Remove rows in reverse order to maintain correct indices
         for idx in sorted(sel_row, key=lambda i: i.row(), reverse=True):
             self.main_window.table.removeRow(idx.row())
 
-        # if there are no more entries -> reset input fields
         if self.main_window.table.rowCount() == 0:
             self.helpers.reset_text_fields()
 
