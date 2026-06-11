@@ -19,13 +19,8 @@ from PySide6.QtGui import QBrush, QColor, QFontDatabase, QFont
 from PySide6.QtWidgets import (
     QMessageBox, QStyle
 )
-from ..i18n import Translator
-from ..settings import (
-    get_config, get_language_from_config, set_language_in_config,
-    ensure_config_file, CONFIG_FILE
-    )
-from ..update_checker import UpdateChecker
-from ..metadata import APP_INFO
+from ..settings import set_language_in_config
+
 
 # Constants
 MIN_WINDOW_WIDTH = 1

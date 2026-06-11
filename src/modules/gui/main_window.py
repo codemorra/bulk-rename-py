@@ -30,18 +30,9 @@ from PySide6.QtWidgets import (
     QDialog, QDialogButtonBox, QStyle, QTableWidget
 )
 from ..i18n import Translator
-from ..importer import ImportOptions, collect
-from ..renamer import (
-    RenameCfg, DateTimeCfg, CounterCfg, ReplaceCfg, CaseCfg, MaskCfg,
-    preview_names, validate_windows_length, validate_linux_bytes, plan_moves,
-    check_conflicts, perform_rename, undo_moves
-)
 from ..settings import (
-    get_config, get_language_from_config, set_language_in_config,
-    set_cfg, ensure_config_file, reset_config, CONFIG_FILE
+    get_config, get_language_from_config, ensure_config_file, CONFIG_FILE
     )
-from ..update_checker import UpdateChecker
-from ..metadata import APP_INFO
 from .rename_manager import RenameManager
 from .table_manager import TableManager
 from .gui_helpers import GUIHelpers, DEFAULT_TOKEN_NAME, DEFAULT_TOKEN_EXT, DEFAULT_TOKEN_COUNTER, DEFAULT_TOKEN_DATE, DEFAULT_TOKEN_TIME, DEFAULT_TOKEN_NAME_SLICE, DEFAULT_TOKEN_EXT_SLICE
