@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 
 # Bulk Rename Py
-# © 2026–present Codemorra
+# © 2026–present Codemorra (Christopher Kranz)
 # Licensed under the MIT License (see LICENSE file)
 
-"""
-Translation module (i18n) for Bulk Rename Py.
+"""Internationalization (i18n) module for Bulk Rename Py.
 
-Loads language files in JSON format and provides translation strings
-that can be retrieved using dot notation (e.g., “sections.import.title”).
+Provides translation functionality using JSON language files.
+Supports nested translation keys with dot notation.
 """
 
 from __future__ import annotations
@@ -16,19 +15,21 @@ import json
 from pathlib import Path
 
 
+# Path to directory containing language JSON files
 LOCALE_DIR = Path(__file__).parent.parent / 'locale'
 
 
 class Translator:
-    """
-    Management and access to language strings.
+    """Translation management and access.
 
     Provides simple translation functions via dot notation,
-    e.g., `translator.t(“sections.import.title”)`.
+    e.g., `translator.t("sections.import.title")`.
     """
     def __init__(self, lang_code: str) -> None:
-        """
-        Initializes the translator with the specified language.
+        """Initialize translator with specified language.
+
+        **Parameters:**
+            `lang_code` (str): Language code (e.g., 'de', 'en')
 
         **Returns:**
             `None`
@@ -37,14 +38,16 @@ class Translator:
         self.lang = self._load_language(lang_code)
 
     def _load_language(self, lang_code: str) -> dict:
-        """
-        Initializes the translator with the specified language.
+        """Load language file from disk.
 
         **Parameters:**
-            `lang_code` (str): Language code of the language to be loaded (e.g., “de,” “en”)
+            `lang_code` (str): Language code to load
 
         **Returns:**
-            `None`
+            `dict`: Loaded language dictionary
+
+        **Raises:**
+            `FileNotFoundError`: If language file doesn't exist
         """
         lang_file = LOCALE_DIR / f'{lang_code}.json'
 
@@ -55,38 +58,39 @@ class Translator:
             return json.load(f)
 
     def t(self, key: str) -> str:
-        """
-        Returns the translation string for the specified dot path.
+        """Get translation for specified key.
 
-        Example:
-        `t(“sections.import.title”)` -> “File Import”
+        Uses dot notation to traverse nested dictionaries.
+        Returns key in brackets if not found.
 
         **Parameters:**
-            `key` (str): Key path separated by periods in the language file
+            `key` (str): Dot-separated translation key
 
         **Returns:**
-            `str`: Translation string found or `[key]` if not found
+            `str`: Translated string or [key] if not found
+
+        **Example:**
+            `t("sections.import.title")` → "File Import"
         """
         data = self.lang
 
-        # resolve nested key via dot-notation, fallback to [key] if missing
+        # Traverse nested keys using dot notation
         for part in key.split('.'):
             if isinstance(data, dict):
                 data = data.get(part, f'[{part}]')
             else:
                 return f'[{key}]'
 
-        # ensure final value is a string
+        # Ensure final value is a string
         if isinstance(data, str):
             return data
         return f'[{key}]'
 
     def switch_language(self, lang_code: str) -> None:
-        """
-        Changes the active language and reloads the corresponding language file.
+        """Switch to different language.
 
         **Parameters:**
-            `lang_code` (str): New language code (e.g., “de,” “en”)
+            `lang_code` (str): New language code
 
         **Returns:**
             `None`
