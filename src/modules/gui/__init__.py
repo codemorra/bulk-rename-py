@@ -4,10 +4,14 @@
 # © 2026–present Codemorra (Christopher Kranz)
 # Licensed under the MIT License (see LICENSE file)
 
-"""
-GUI module package for Bulk Rename Py.
+"""GUI module package for Bulk Rename Py.
 
-This package contains all GUI-related modules for the application.
+Contains all GUI components for the application including:
+- Main application window (MainWindow)
+- Table management (TableManager)
+- Renaming operations coordination (RenameManager)
+- GUI helper functions (GUIHelpers)
+- About dialog (AboutDialog)
 """
 
 # Common imports that can be used by other modules
@@ -19,9 +23,14 @@ from .about_dialog import AboutDialog
 
 # Common constants that might be used across modules
 __all__ = [
+    # Main window and components
     'MainWindow',
-    'TableManager', 
+    # Table management
+    'TableManager',
+    # Renaming operations coordination
     'RenameManager',
+    # GUI helper functions
     'GUIHelpers',
+    # About dialog
     'AboutDialog'
 ]

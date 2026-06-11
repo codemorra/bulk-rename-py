@@ -6,8 +6,11 @@
 
 """Core module for Bulk Rename Py.
 
-Contains the main logic for file renaming operations, token processing,
-validation, and conflict resolution.
+Contains the main logic for file renaming operations including:
+- Configuration types (DateTimeCfg, CounterCfg, etc.)
+- Core renaming operations (Renamer class)
+- Token processing and mask application (TokenProcessor)
+- Filename validation (Validator class)
 """
 
 from .types import (
@@ -18,12 +21,12 @@ from .tokens import TokenProcessor
 from .validation import Validator
 
 __all__ = [
-    # Types
+    # Configuration types
     'DateTimeCfg', 'CounterCfg', 'ReplaceCfg', 'CaseCfg', 'MaskCfg', 'RenameCfg',
-    # Main functions (via Renamer class)
+    # Core renaming operations
     'Renamer',
-    # Token processing
+    # Token processing and mask application
     'TokenProcessor',
-    # Validation
+    # Filename validation
     'Validator'
 ]
