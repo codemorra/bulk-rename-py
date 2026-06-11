@@ -12,6 +12,7 @@ Contains all GUI components for the application including:
 - Renaming operations coordination (RenameManager)
 - GUI helper functions (GUIHelpers)
 - About dialog (AboutDialog)
+- Section creation utilities (CreateSections)
 """
 
 # Common imports that can be used by other modules
@@ -20,6 +21,7 @@ from .table_manager import TableManager
 from .rename_manager import RenameManager
 from .gui_helpers import GUIHelpers
 from .about_dialog import AboutDialog
+from .create_sections import CreateSections
 
 # Common constants that might be used across modules
 __all__ = [
@@ -32,5 +34,7 @@ __all__ = [
     # GUI helper functions
     'GUIHelpers',
     # About dialog
-    'AboutDialog'
+    'AboutDialog',
+    # Section creation utilities
+    'CreateSections'
 ]
