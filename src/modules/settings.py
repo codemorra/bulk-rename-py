@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 
 # Bulk Rename Py
-# © 2026–present Codemorra
+# © 2026–present Codemorra (Christopher Kranz)
 # Licensed under the MIT License (see LICENSE file)
 
-"""
-Settings module for Bulk Rename Py.
+"""Settings module for Bulk Rename Py.
 
-Creates ‘config.ini’ if necessary, loads and checks whether it is
-complete and valid, corrects incorrect entries, and writes changes.
+Handles application configuration including automatic file creation,
+validation, sanitization, and persistent storage of user preferences.
+Ensures configuration is always valid with missing or invalid values
+automatically reset to defaults. Supports platform-specific handling
+for Windows and Linux systems.
 """
-
 
 from __future__ import annotations
 import os
@@ -18,9 +19,7 @@ import configparser
 from pathlib import Path
 from PySide6.QtCore import QLocale
 
-
-# --- Constants ---
-# path to the directory containing config.ini
+# Constants
 if os.name == 'nt':  # Windows
     base_dir = Path(os.getenv('APPDATA', Path.home() / 'AppData' / 'Roaming'))
     CONFIG_DIR = base_dir / 'BulkRenamePy'
@@ -30,7 +29,7 @@ else:  # Linux
 
 CONFIG_FILE = CONFIG_DIR / 'config.ini'
 
-# default configuration
+# Default configuration
 DEFAULTS = {
     'general': {
         'language': 'en',
@@ -62,7 +61,7 @@ DEFAULTS = {
     }
 }
 
-# permitted values
+# Permitted values
 ALLOWED = {
     'general': {
         'language': {'de', 'en'},
@@ -79,14 +78,18 @@ ALLOWED = {
     }
 }
 
-# number ranges
+# Number ranges
+MAX_COUNTER_START = 10000
+MAX_COUNTER_STEP = 1000
+MAX_COUNTER_DIGITS = 10
+
 RANGES = {
-    ('counter', 'start'): (0, 10000),
-    ('counter', 'step'): (1, 1000),
-    ('counter', 'digits'): (1, 10),
+    ('counter', 'start'): (0, MAX_COUNTER_START),
+    ('counter', 'step'): (1, MAX_COUNTER_STEP),
+    ('counter', 'digits'): (1, MAX_COUNTER_DIGITS),
 }
 
-# automatically derive Boolkeys from DEFAULTS
+# Automatically derive Boolkeys from DEFAULTS
 BOOL_KEYS = {
     (sec, key)
     for sec, kv in DEFAULTS.items()
@@ -95,110 +98,176 @@ BOOL_KEYS = {
 }
 
 
-# --- Protected Functions ---
-def _detect_system_language() -> str:
-    """
-    Detects the system language using Qt's locale system.
+######################
+# MAIN FUNCTIONALITY #
+######################
+def ensure_config_file() -> None:
+    """Ensure configuration file exists, create with defaults if missing.
+
+    Creates the configuration directory and file if they don't exist.
+    Uses system language detection for initial language setting.
 
     **Returns:**
-        `str`: `'de'` if a German locale is detected, otherwise `'en'`
+        `None`
     """
-    bcp47 = QLocale.system().bcp47Name().lower()  # e.g. 'de-de', 'en-us'
-    if bcp47.startswith('de'):
-        return 'de'
+    # Create configuration directory if it doesn't exist
+    if not CONFIG_DIR.exists():
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
-    return 'en'
+    # Create default configuration file if missing
+    if not CONFIG_FILE.exists():
+        lang = _detect_system_language()
+        cfg = _build_cfg_from_defaults(override_language=lang)
+        _save_config(cfg)
 
+def get_config() -> configparser.ConfigParser:
+    """Load and validate configuration.
 
-def _build_cfg_from_defaults(*, override_language: str | None = None) -> configparser.ConfigParser:
+    Ensures configuration file exists, loads it, validates all values,
+    and corrects invalid entries using defaults.
+
+    **Returns:**
+        `configparser.ConfigParser`: Validated configuration object
     """
-    Creates a new :class:`ConfigParser` object based on the default values
-    from ``DEFAULTS`` and optionally overrides the language.
+    # Ensure configuration file exists
+    ensure_config_file()
+
+    # Load configuration from disk
+    cfg = configparser.ConfigParser()
+    cfg.read(CONFIG_FILE, encoding='utf-8')
+
+    # Validate and sanitize configuration
+    if _sanitize_config(cfg):
+        _save_config(cfg)
+
+    return cfg
+
+def get_language_from_config() -> str:
+    """Get current language from configuration.
+
+    **Returns:**
+        `str`: Language code (e.g., 'en', 'de')
+    """
+    return get_config().get('general', 'language')
+
+def set_cfg(section: str, key: str, value) -> None:
+    """Set configuration value with validation.
+
+    Sets a configuration value, validates it, and persists changes.
+    Enforces Windows-specific rules automatically.
 
     **Parameters:**
-        `override_language` (str | None): If specified = language identifier, else None
+        `section` (str): Configuration section
+        `key` (str): Configuration key
+        `value` (Any): Value to set
 
     **Returns:**
-        :class:`configparser.ConfigParser`: Fully constructed configuration object with all default values
+        `None`
+
+    **Raises:**
+        `RuntimeError`: If configuration cannot be saved
     """
-    # create a new empty configuration object
+    # Force Windows-specific rule
+    if section == 'advanced' and key == 'windows_names' and os.name == 'nt':
+        value = True
+
+    # Get current configuration
+    cfg = get_config()
+
+    # Ensure section exists
+    if not cfg.has_section(section):
+        cfg.add_section(section)
+
+    # Set value and save
+    cfg.set(section, key, _to_str(value))
+    _save_config(cfg)
+
+def set_language_in_config(lang_code: str) -> None:
+    """Set language in configuration.
+
+    Validates the language code and updates configuration.
+
+    **Parameters:**
+        `lang_code` (str): Language code to set
+
+    **Returns:**
+        `None`
+    """
+    # Validate language code
+    if lang_code not in ALLOWED['general']['language']:
+        lang_code = DEFAULTS['general']['language']
+
+    # Update configuration
+    cfg = get_config()
+    cfg.set('general', 'language', lang_code)
+    _save_config(cfg)
+
+def reset_config(*, autodetect_language: bool = True) -> None:
+    """Reset configuration to default values.
+
+    Overwrites existing configuration with default values.
+    Can optionally detect and use system language.
+
+    **Parameters:**
+        `autodetect_language` (bool): Whether to detect system language
+
+    **Returns:**
+        `None`
+    """
+    # Detect system language if enabled
+    lang = _detect_system_language() if autodetect_language else None
+
+    # Build new configuration with defaults
+    cfg = _build_cfg_from_defaults(override_language=lang)
+    _save_config(cfg)
+
+
+####################
+# HELPER FUNCTIONS #
+####################
+def _build_cfg_from_defaults(*, override_language: str | None = None) -> configparser.ConfigParser:
+    """Build configuration from default values.
+
+    Creates a new ConfigParser with all default values.
+    Optionally overrides the language setting.
+
+    **Parameters:**
+        `override_language` (str | None): Language code override
+
+    **Returns:**
+        `configparser.ConfigParser`: Configured ConfigParser instance
+    """
+    # Create new configuration
     cfg = configparser.ConfigParser()
 
-    # populate all sections and keys from DEFAULTS
+    # Populate with defaults
     for sec, kv in DEFAULTS.items():
         cfg[sec] = {}
         for k, v in kv.items():
             cfg[sec][k] = _to_str(v)
 
-    # apply optional language override if provided
+    # Apply language override if provided
     if override_language is not None:
         cfg.set('general', 'language', override_language)
 
     return cfg
 
-
-def _to_str(v) -> str:
-    """
-    Converts a value to a string.
-
-    Boolean values are returned as “True”/“False”, all other
-    types are converted using `str()`.
-
-    **Parameters:**
-        `v` (Any): Input value of any type
-
-    **Returns:**
-        `str`: String representation of the value
-    """
-    if isinstance(v, bool):
-        return 'True' if v else 'False'
-
-    return str(v)
-
-
-def _parse_bool(s: str) -> bool | None:
-    """
-    Converts a string to a Boolean value.
-
-    Accepts various notations (e.g., “true”, “1”, “yes”).
-    Returns None if no clear interpretation is possible.
-
-    **Parameters:**
-        `s` (str): Input string
-
-    **Returns:**
-        `bool | None`: True or False if the value is valid, otherwise None
-    """
-    if s is None:
-        return None
-
-    low = s.strip().lower()
-
-    if low in {'true', '1', 'yes', 'y', 'on'}:
-        return True
-
-    if low in {'false', '0', 'no', 'n', 'off'}:
-        return False
-
-    return None
-
-
 def _sanitize_config(cfg: configparser.ConfigParser) -> bool:
-    """
-    Checks all configuration values for completeness and validity.
+    """Validate and correct configuration values.
 
-    Missing or invalid entries are reset to default values from `DEFAULTS`.
-    Additionally checks allowed value ranges and enum fields.
+    Ensures all sections and keys exist, normalizes boolean values,
+    validates enum fields, and clamps numeric values to allowed ranges.
+    Missing or invalid values are reset to defaults.
 
     **Parameters:**
-        `cfg` (configparser.ConfigParser): ConfigParser instance to be checked
+        `cfg` (configparser.ConfigParser): Configuration to sanitize
 
     **Returns:**
-        `bool`: True if changes have been made and need to be saved
+        `bool`: True if changes were made, False otherwise
     """
     changed = False
 
-    # ensure all sections and default keys exist
+    # Ensure all sections and default keys exist
     for sec, kv in DEFAULTS.items():
         for key, default_val in kv.items():
             if not cfg.has_section(sec):
@@ -208,7 +277,7 @@ def _sanitize_config(cfg: configparser.ConfigParser) -> bool:
                 cfg.set(sec, key, _to_str(default_val))
                 changed = True
 
-    # normalize boolean values
+    # Normalize boolean values
     for (sec, key) in BOOL_KEYS:
         raw = cfg.get(sec, key, fallback=None)
         parsed = _parse_bool(raw) if raw is not None else None
@@ -218,7 +287,7 @@ def _sanitize_config(cfg: configparser.ConfigParser) -> bool:
             cfg.set(sec, key, _to_str(parsed))
             changed = True
 
-    # validate enum fields (allowed string values)
+    # Validate enum fields
     for sec, keys in ALLOWED.items():
         for key, allowed in keys.items():
             val = cfg.get(sec, key, fallback=None)
@@ -226,7 +295,7 @@ def _sanitize_config(cfg: configparser.ConfigParser) -> bool:
                 cfg.set(sec, key, _to_str(DEFAULTS[sec][key]))
                 changed = True
 
-    # validate numeric ranges and clamp out-of-range values
+    # Validate numeric ranges
     for (sec, key), (lo, hi) in RANGES.items():
         raw = cfg.get(sec, key, fallback=None)
         try:
@@ -240,168 +309,82 @@ def _sanitize_config(cfg: configparser.ConfigParser) -> bool:
 
     return changed
 
+def _detect_system_language() -> str:
+    """Detect system language.
 
-# --- Public Functions ---
-def ensure_config_file() -> None:
+    Attempts to detect system language using Qt's locale system.
+    Falls back to English if detection is unreliable or fails.
+
+    **Returns:**
+        `str`: Detected language code ('de' or 'en')
     """
-    Creates the `config.ini` file with default values if it does not already exist.
+    try:
+        bcp47 = QLocale.system().bcp47Name().lower()
+        # Only return 'de' if we're very confident it's a German system
+        if bcp47.startswith('de') or bcp47 == 'de':
+            return 'de'
+    except Exception:
+        pass
+    
+    # Default to English for reliability
+    return 'en'
+
+def _to_str(v) -> str:
+    """Convert value to string representation.
+
+    Converts booleans to 'True'/'False', other types to string.
+
+    **Parameters:**
+        `v` (Any): Value to convert
+
+    **Returns:**
+        `str`: String representation
+    """
+    if isinstance(v, bool):
+        return 'True' if v else 'False'
+    return str(v)
+
+def _parse_bool(s: str) -> bool | None:
+    """Parse string to boolean.
+
+    Accepts various boolean representations (true/false, 1/0, yes/no).
+
+    **Parameters:**
+        `s` (str): String to parse
+
+    **Returns:**
+        `bool | None`: Parsed boolean or None if invalid
+    """
+    if s is None:
+        return None
+
+    low = s.strip().lower()
+    if low in {'true', '1', 'yes', 'y', 'on'}:
+        return True
+    if low in {'false', '0', 'no', 'n', 'off'}:
+        return False
+    return None
+
+def _save_config(cfg: configparser.ConfigParser) -> None:
+    """Safely save configuration to file.
+
+    Creates directory if needed and handles file operation errors.
+
+    **Parameters:**
+        `cfg` (configparser.ConfigParser): Configuration to save
 
     **Returns:**
         `None`
+
+    **Raises:**
+        `RuntimeError`: If configuration cannot be saved
     """
-    # ensure the configuration directory exists
-    if not CONFIG_DIR.exists():
+    try:
+        # Ensure directory exists
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
-    # create a new config.ini file using defaults if missing
-    if not CONFIG_FILE.exists():
-        lang = _detect_system_language()
-        cfg = _build_cfg_from_defaults(override_language=lang)
+        # Write configuration file
         with CONFIG_FILE.open('w', encoding='utf-8') as f:
             cfg.write(f)
-
-
-def reset_config(*, autodetect_language: bool = True) -> None:
-    """
-    Resets `config.ini` to the default values from `DEFAULTS`.
-
-    The system language is automatically detected and entered accordingly
-    under `[general] -> language`.
-
-    **Parameters:**
-        `autodetect_language` (bool): Specifies whether the system language should be automatically
-        detected and applied when resetting.
-
-    **Return:**
-        `None`
-    """
-    # detect system language if enabled
-    lang = _detect_system_language() if autodetect_language else None
-
-    # build a new configuration with defaults and optional language override
-    cfg = _build_cfg_from_defaults(override_language=lang)
-
-    # ensure the configuration directory exists
-    if not CONFIG_DIR.exists():
-        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-
-    # overwrite existing config.ini with default values
-    with CONFIG_FILE.open('w', encoding='utf-8') as f:
-        cfg.write(f)
-
-
-def get_config() -> configparser.ConfigParser:
-    """
-    Loads and checks the current `config.ini`.
-
-    Creates the file if necessary, corrects invalid values using
-    `_sanitize_config()`, and writes it back if necessary.
-
-    **Returns:**
-        `configparser.ConfigParser`: Loaded and validated ConfigParser instance
-    """
-    # ensure the configuration file exists (create with defaults if missing)
-    ensure_config_file()
-
-    # load the configuration from disk
-    cfg = configparser.ConfigParser()
-    cfg.read(CONFIG_FILE, encoding='utf-8')
-
-    # validate and sanitize configuration, rewrite if corrections were made
-    if _sanitize_config(cfg):
-        with CONFIG_FILE.open('w', encoding='utf-8') as f:
-            cfg.write(f)
-
-    return cfg
-
-
-def get_language_from_config() -> str:
-    """
-    Reads the currently set language from the configuration.
-
-    **Returns:**
-        `str`: Language code (e.g., “en” or “de”)
-    """
-    cfg = get_config()
-
-    return cfg.get('general', 'language')
-
-
-def set_language_in_config(lang_code: str) -> None:
-    """
-    Sets the display language in the configuration and saves the change.
-
-    Validates the language code based on the allowed values.
-    Invalid entries are reset to the default value.
-
-    **Parameters:**
-        `lang_code` (str): Language code (e.g., “de” or “en”)
-
-    **Returns:**
-        `None`
-    """
-    # validate the provided language code, fallback to default if invalid
-    if lang_code not in ALLOWED['general']['language']:
-        lang_code = DEFAULTS['general']['language']
-
-    cfg = get_config()
-
-    # update the language entry
-    cfg.set('general', 'language', lang_code)
-
-    # save updated configuration back to file
-    with CONFIG_FILE.open('w', encoding='utf-8') as f:
-        cfg.write(f)
-
-
-def sanitize_and_save(cfg: configparser.ConfigParser) -> None:
-    """
-    Public helper function to validate and save an existing configuration.
-
-    Executes `_sanitize_config()` and rewrites `config.ini` if changes are necessary.
-
-    **Parameters:**
-        `cfg` (configparser.ConfigParser): ConfigParser instance to check
-
-    **Returns:**
-        `None`
-    """
-    if _sanitize_config(cfg):
-        with CONFIG_FILE.open('w', encoding='utf-8') as f:
-            cfg.write(f)
-
-
-def set_cfg(section: str, key: str, value) -> None:
-    """
-    Writes a configuration value to the .ini file and ensures
-    that all values are valid and normalized.
-
-    Under Windows, the entry “windows_names” is automatically set to True.
-
-    **Parameters:**
-        `section` (str): Name of the configuration section
-        `key` (str): Key within the section
-        `value` (Any): New value (any type, converted to string)
-
-    **Returns:**
-        `None`
-    """
-    # force Windows-specific rule -> 'windows_names' must always be True
-    if section == 'advanced' and key == 'windows_names' and os.name == 'nt':
-        value = True
-
-    cfg = get_config()
-
-    # ensure the target section exists
-    if not cfg.has_section(section):
-        cfg.add_section(section)
-
-    # convert the value to string and set it in the configuration
-    val_str = _to_str(value)
-    cfg.set(section, key, val_str)
-
-    sanitize_and_save(cfg)
-
-    # write updated configuration to disk
-    with CONFIG_FILE.open('w', encoding='utf-8') as f:
-        cfg.write(f)
+    except (OSError, IOError) as e:
+        raise RuntimeError(f"Failed to save configuration: {e}") from e
