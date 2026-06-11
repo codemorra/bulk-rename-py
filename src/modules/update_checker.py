@@ -1,15 +1,13 @@
 # -*- coding: utf-8 -*-
 
 # Bulk Rename Py
-# © 2026–present Codemorra
+# © 2026–present Codemorra (Christopher Kranz)
 # Licensed under the MIT License (see LICENSE file)
 
-"""
-UpdateChecker service for Bulk Rename Py.
+"""Update checker module for Bulk Rename Py.
 
-Asynchronously checks whether a newer version is available on GitHub.
-To do this, the API of the specified repository is queried and the
-current release tag is compared with the current program version.
+Provides functionality to check for new releases on GitHub.
+Runs asynchronously to avoid blocking the GUI.
 """
 
 from __future__ import annotations
@@ -21,123 +19,102 @@ import certifi
 from PySide6.QtCore import QObject, Signal
 
 
-# --- Protected Helper Function ---
 def _version_tuple(v: str) -> tuple[int, ...]:
-    """
-    Converts a version string into a comparison tuple.
+    """Convert version string to comparable tuple.
 
-    Removes leading “v”/“V” and converts each component to a number
-    to allow version numbers to be compared lexicographically.
+    Removes leading 'v'/'V' and converts each component to a number
+    to allow lexicographical version comparison.
 
     **Parameters:**
-        `v` (str): Version string.
+        `v` (str): Version string (e.g., 'v1.2.3' or '1.2.3')
 
     **Returns:**
-        `tuple[int, ...]`: Numeric parts of the version as a tuple.
+        `tuple[int, ...]`: Numeric version tuple
+
+    **Example:**
+        'v1.2.3' → (1, 2, 3)
     """
-    # remove leading 'v' or 'V' and surrounding whitespace
+    # Remove leading 'v' or 'V' and surrounding whitespace
     v = v.strip().lstrip('vV')
     parts = []
 
-    # split by dots and extract numeric components only
+    # Split by dots and extract numeric components only
     for p in v.split('.'):
         d = ''.join(ch for ch in p if ch.isdigit())
         parts.append(int(d or '0'))
 
-    # return tuple for lexicographical version comparison
+    # Return tuple for lexicographical version comparison
     return tuple(parts) if parts else (0,)
 
 
 class UpdateChecker(QObject):
-    """
-    Asynchronously checks whether a new release is available on GitHub.
+    """Asynchronous update checker.
 
-    Starts a thread that queries the GitHub API, reads the latest
-    release tag, and compares it with the current program version.
-    Once complete, the `finished` signal is triggered.
+    Checks GitHub API for newer releases in a separate thread.
+    Emits finished signal when complete.
 
-    **Signals:**
-    - `finished(bool, str)`: Triggered after the check.
-    - `str`: Status of the update check:
-        - `"available"` -> a newer version is available
-        - `"none"` -> no newer version is available
-        - `"failed"` -> the update check failed
-    - `str`: URL to the project's release page.
+    Signals:
+        finished(str, str): Emitted when check completes
+            - str: 'available', 'none', or 'failed'
+            - str: Release URL
     """
-    finished = Signal(str, str)  # (available, release_url)
+    finished = Signal(str, str)  # (status, release_url)
 
     def __init__(self, repo: str, current_version: str) -> None:
-        """
-        Initializes the UpdateChecker with repository and current version.
+        """Initialize update checker.
 
         **Parameters:**
-            `repo` (str): GitHub repository in the format “user/repo”.
-            `current_version` (str): Local program version (e.g., `“1.2.0”` or `“v1.2.0”`).
-
-        **Returns:**
-            `None`
+            `repo` (str): GitHub repository (user/repo)
+            `current_version` (str): Current application version
         """
         super().__init__()
         self.repo = repo
         self.current_version = current_version
 
     def start(self) -> None:
-        """
-        Starts the check in a separate thread.
+        """Start update check in background thread.
 
-        Executes the `_run()` method asynchronously so as not to block the GUI.
-
-        **Returns:**
-            `None`
+        Runs asynchronously to avoid blocking the GUI.
         """
-        # run the update check asynchronously to avoid blocking the GUI
+        # Run check in background thread
         threading.Thread(target=self._run, daemon=True).start()
 
     def _run(self) -> None:
+        """Perform actual update check.
+
+        Queries GitHub API, compares versions, and emits result.
         """
-        Performs the actual update check.
-
-        Queries the GitHub API for the latest release tag,
-        compares it with the current program version,
-        and sends the result via the `finished` signal.
-
-        On errors, emits: finished(False, <releases-url>)
-
-        **Returns:**
-            `None`
-        """
-        # build API and repository URLs
+        # Build API and release URLs
         api = f'https://api.github.com/repos/{self.repo}/releases/latest'
         releases_url = f'https://github.com/{self.repo}/releases'
 
-        # construct a detailed User-Agent string for the request
+        # Construct detailed User-Agent string
         ua = f'BulkRenamePy/{self.current_version} ({platform.system()}; {platform.machine()})'
 
         try:
-            # request the latest release information from GitHub
+            # Request latest release information
             r = requests.get(
                 api,
                 headers={'User-Agent': ua, 'Accept': 'application/vnd.github+json'},
                 timeout=7.0,
                 verify=certifi.where(),
             )
-            # raise exception for HTTP errors
             r.raise_for_status()
             data = r.json()
 
-            # extract latest tag and release URL
+            # Extract latest tag and release URL
             tag = (data.get('tag_name') or '').strip()
             url = data.get('html_url') or releases_url
 
-            # compare version numbers to detect newer releases
+            # Compare version numbers
             if _version_tuple(tag) > _version_tuple(self.current_version):
                 status = 'available'
             else:
                 status = 'none'
 
-            # emit result via signal (update available?, release URL)
+            # Emit success result
             self.finished.emit(status, url)
 
         except Exception:
-            # on error -> emit failure state and fallback release URL
+            # Emit failure result on any error
             self.finished.emit('failed', releases_url)
