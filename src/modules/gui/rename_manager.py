@@ -25,7 +25,7 @@ from ..core.types import (
 from ..core.renamer import Renamer
 from ..core.validation import Validator
 from ..settings import set_cfg, reset_config
-from ..importer import ImportOptions, collect
+from ..importer import ImportOptions, Importer
 from .table_manager import TableManager
 from .gui_helpers import GUIHelpers
 
@@ -859,7 +859,7 @@ class RenameManager:
             include_hidden=self.main_window.act_hidden.isChecked()
         )
 
-        items = collect(paths, opts)
+        items = Importer.collect(paths, opts)
         files = [it.path for it in items if not it.is_dir]
 
         # natural sorting by file name
