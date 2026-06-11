@@ -18,14 +18,13 @@ import tempfile
 from pathlib import Path
 from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import QMessageBox, QPlainTextEdit, QFileDialog
-from ..renamer import (
-    RenameCfg, DateTimeCfg, CounterCfg, ReplaceCfg, CaseCfg, MaskCfg,
-    preview_names, validate_windows_length, validate_linux_bytes, plan_moves,
-    check_conflicts, perform_rename, undo_moves
+from PySide6.QtWidgets import QMessageBox, QPlainTextEdit, QFileDialog, QTableWidgetItem
+from ..core.types import (
+    RenameCfg, DateTimeCfg, CounterCfg, ReplaceCfg, CaseCfg, MaskCfg
 )
-from ..settings import CONFIG_FILE, set_cfg
-from ..i18n import Translator
+from ..core.renamer import Renamer
+from ..core.validation import Validator
+from ..settings import set_cfg, reset_config
 from ..importer import ImportOptions, collect
 from .table_manager import TableManager
 from .gui_helpers import GUIHelpers
@@ -151,8 +150,8 @@ class RenameManager:
         and visually marks invalid entries.
 
         Platform-dependent logic:
-            - Windows -> Character length (validate_windows_length)
-            - Linux -> Byte size (validate_linux_bytes)
+            - Windows -> Character length (validate_path_length with platform='windows')
+            - Linux -> Byte size (validate_path_length with platform='linux')
 
         Display:
             - Invalid -> Text in red + italics
@@ -169,28 +168,50 @@ class RenameManager:
         # collect current rename configuration
         cfg = self.collect_cfg()
         paths = [Path(self.main_window.table.item(r, 0).data(Qt.UserRole)) for r in range(rowcount)]
-        new_names = preview_names(paths, cfg)
+        new_names = Renamer.preview_names(paths, cfg)
+        
+        # Apply Linux-specific sanitization if needed
+        if not self.helpers.is_windows():
+            new_names = [Validator.sanitize_filename(name, linux_safe=True) for name in new_names]
 
         for r, new_name in enumerate(new_names):
+            # Check if original file item exists
+            src_item = self.main_window.table.item(r, 0)
+            if src_item is None:
+                continue  # Skip this row if original item is missing
+            
+            # Create or get preview item
             item = self.main_window.table.item(r, 1)
+            if item is None:
+                # Create missing preview item
+                item = QTableWidgetItem('')
+                self.main_window.table.setItem(r, 1, item)
             item.setText(new_name)
 
             # get base directory for current file
-            src_full = Path(self.main_window.table.item(r, 0).data(Qt.UserRole))
+            src_full = Path(src_item.data(Qt.UserRole))
             base_dir = src_full.parent
 
             # initialize validation state and message list
             invalid = False
             messages = []
 
-            # validate filename length according to OS limits
-            if self.helpers.is_windows():
-                if not validate_windows_length(base_dir, new_name):
+            # validate filename according to OS rules
+            platform = 'windows' if self.helpers.is_windows() else 'linux'
+            
+            # Validate filename content only if Windows-safe mode is enabled
+            # (otherwise illegal characters are allowed and will be handled by the OS)
+            if platform == 'windows' and cfg.case.windows_names:
+                if not Validator.validate_filename(new_name, windows_safe=True):
                     invalid = True
+                    messages.append(self.helpers.tr('tooltips.table.filename_invalid_chars'))
+            
+            # Validate path length according to OS limits
+            if not Validator.validate_path_length(base_dir, new_name, platform=platform):
+                invalid = True
+                if platform == 'windows':
                     messages.append(self.helpers.tr('tooltips.table.filename_too_long_windows'))
-            else:
-                if not validate_linux_bytes(base_dir, new_name):
-                    invalid = True
+                else:
                     messages.append(self.helpers.tr('tooltips.table.filename_too_long_linux'))
 
             # format tooltip and apply preview cell styling
@@ -443,7 +464,7 @@ class RenameManager:
         # build planned rename operations from table entries
         paths = [Path(self.main_window.table.item(r, 0).data(Qt.UserRole)) for r in range(rows)]
         new_names = [self.main_window.table.item(r, 1).text() for r in range(rows)]
-        plan = plan_moves(paths, new_names)
+        plan = Renamer.plan_moves(paths, new_names)
 
         # check if any actual rename would happen
         effective = [(src, dst) for src, dst in plan if src.name != dst.name]
@@ -456,7 +477,7 @@ class RenameManager:
             return
 
         # conflicts
-        conflicts = check_conflicts(effective)
+        conflicts = Validator.check_conflicts(effective)
         if conflicts:
             self.show_conflicts(conflicts)
             return
@@ -472,7 +493,7 @@ class RenameManager:
             return
 
         # perform the actual renaming operation and collect any errors
-        errors = perform_rename(effective)
+        errors = Renamer.perform_rename(effective)
 
         # if errors occurred during renaming, show an error dialog and abort
         if errors:
@@ -542,8 +563,8 @@ class RenameManager:
         length/byte limits (platform-dependent).
 
         Platform logic:
-            - Windows: validate_windows_length (character/path limits)
-            - Linux:   validate_linux_bytes    (byte limits NAME_MAX/PATH_MAX)
+            - Windows: validate_path_length with platform='windows' (character/path limits)
+            - Linux:   validate_path_length with platform='linux'   (byte limits NAME_MAX/PATH_MAX)
 
         If at least one entry is too long, a warning dialog is displayed
         and renaming is prevented.
@@ -603,39 +624,17 @@ class RenameManager:
         **Returns:**
             `bool`: True if name is valid, False otherwise.
         """
-        if self.helpers.is_windows():
-            return self._validate_windows_length(base_dir, new_name)
-        else:
-            return self._validate_linux_length(base_dir, new_name)
-
-    def _validate_windows_length(self, base_dir: Path, new_name: str) -> bool:
-        """
-        Validates a name against Windows length constraints.
-
-        **Parameters:**
-            `base_dir` (Path): Base directory path.
-            `new_name` (str): New filename to validate.
-
-        **Returns:**
-            `bool`: True if name is valid, False otherwise.
-        """
-        if not validate_windows_length(base_dir, new_name):
-            self._show_name_too_long_warning()
-            return False
-        return True
-
-    def _validate_linux_length(self, base_dir: Path, new_name: str) -> bool:
-        """
-        Validates a name against Linux byte-length constraints.
-
-        **Parameters:**
-            `base_dir` (Path): Base directory path.
-            `new_name` (str): New filename to validate.
-
-        **Returns:**
-            `bool`: True if name is valid, False otherwise.
-        """
-        if not validate_linux_bytes(base_dir, new_name):
+        platform = 'windows' if self.helpers.is_windows() else 'linux'
+        
+        # Validate filename content only if Windows-safe mode is enabled
+        # (otherwise illegal characters are allowed and will be handled by the OS)
+        if platform == 'windows' and cfg.case.windows_names:
+            if not Validator.validate_filename(new_name, windows_safe=True):
+                self._show_invalid_chars_warning()
+                return False
+        
+        # Validate path length according to OS limits
+        if not Validator.validate_path_length(base_dir, new_name, platform=platform):
             self._show_name_too_long_warning()
             return False
         return True
@@ -651,6 +650,19 @@ class RenameManager:
             self.main_window,
             self.helpers.tr('messages.warning'),
             self.helpers.tr('messages.warnings.name_too_long'),
+        )
+
+    def _show_invalid_chars_warning(self) -> None:
+        """
+        Shows a warning dialog for invalid characters in filenames.
+
+        **Returns:**
+            `None`
+        """
+        QMessageBox.warning(
+            self.main_window,
+            self.helpers.tr('messages.warning'),
+            self.helpers.tr('messages.warnings.invalid_chars'),
         )
 
     def perform_undo(self) -> None:
@@ -684,7 +696,7 @@ class RenameManager:
         moves = self.main_window._undo_stack[-1]
 
         # try to revert all previously renamed files
-        missing, errors = undo_moves(moves)
+        missing, errors = Renamer.undo_moves(moves)
 
         # show error if some original source files are missing
         if missing:
@@ -784,7 +796,6 @@ class RenameManager:
         **Returns:**
             `None`
         """
-        from ..settings import reset_config
         if not self.helpers.question_box('messages.confirm', 'messages.questions.reset_settings'):
             return
 
