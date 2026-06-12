@@ -8,11 +8,25 @@ It provides a wide range of features for conveniently renaming large numbers of 
 
 ---
 
+## Table of Contents
+- [Technical Requirements](#technical-requirements)
+- [Installation](#installation)
+- [Updates](#updates)
+- [Function Overview](#function-overview)
+- [Usage & Features](#usage--features)
+- [Behavior & Notes](#behavior--notes)
+- [License](#license)
+
+---
+
+
+
 ## Technical Requirements
+<a name="technical-requirements"></a>
 
 ### Manual installation
 
-- **Python:** **>= 3.13**
+- **Python:** **>= 3.14**
 - **Dependencies:** see [`requirements.txt`](requirements.txt)
 
 ### Prebuilt packages
@@ -28,6 +42,7 @@ It provides a wide range of features for conveniently renaming large numbers of 
 ---
 
 ## Installation
+<a name="installation"></a>
 
 ### AUR
 
@@ -43,21 +58,26 @@ The [latest release](https://github.com/codemorra/bulk-rename-py/releases/latest
 
 ### Manually – Linux (without AUR)
 
-Clone the repository and set up a Python virtual environment:
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/codemorra/bulk-rename-py.git
+   cd bulk-rename-py
+   ```
 
-```bash
-git clone https://github.com/codemorra/bulk-rename-py.git
-cd bulk-rename-py
-python -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-python src/bulk_rename_py.py
-```
+2. Set up the virtual environment:
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+
+3. Run the application:
+   ```bash
+   chmod +x start_linux.sh
+   ./start_linux.sh
+   ```
 
 #### Optional: Create a Desktop Shortcut (desktop environments with .desktop files)
-
-*This step is only required for manual installations. AUR installations already include a system-wide desktop entry.*
 
 1. Copy the provided `.desktop` file from the repository to the appropriate directory:
 
@@ -76,7 +96,7 @@ python src/bulk_rename_py.py
 3. Open the copied file (`~/.local/share/applications/bulk-rename-py.desktop`) and adjust **Exec** and **TryExec** to your local installation path, for example:
 
     ```ini
-    Exec='<PATH_TO_REPOSITORY>/.venv/bin/python3' '<PATH_TO_REPOSITORY>/src/bulk_rename_py.py'
+    Exec='<PATH_TO_REPOSITORY>/.venv/bin/python3' '<PATH_TO_REPOSITORY>/src/main.py'
     TryExec=<PATH_TO_REPOSITORY>/.venv/bin/python3
     ```
 
@@ -90,24 +110,30 @@ python src/bulk_rename_py.py
 
 ### Manually - Windows
 
-Clone the repository and set up a Python virtual environment:
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/codemorra/bulk-rename-py.git
+   cd bulk-rename-py
+   ```
 
-```bash
-git clone https://github.com/codemorra/bulk-rename-py.git
-cd bulk-rename-py
-python -m venv .venv
-.venv\Scripts\activate
-pip install --upgrade pip
-pip install -r requirements.txt
-python src\bulk_rename_py.py
-```
+2. Set up the virtual environment (once):
+   ```bash
+   python -m venv .venv
+   .venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+
+3. Run the application:
+   ```bash
+   start_windows.bat
+   ```
 
 #### Optional: Create a Desktop Shortcut
 
 1. Right-click on the desktop → New → Shortcut
     - Target:
       ```
-      "<PATH_TO_REPOSITORY>\.venv\Scripts\pythonw.exe" "<PATH_TO_REPOSITORY>\src\bulk_rename_py.py"
+      "<PATH_TO_REPOSITORY>\.venv\Scripts\pythonw.exe" "<PATH_TO_REPOSITORY>\src\main.py"
       ```
 
 2. Right-click the shortcut → Properties → Change Icon...
@@ -119,6 +145,7 @@ python src\bulk_rename_py.py
 ---
 
 ## Updates
+<a name="updates"></a>
 
 You can check for available updates in the About dialog. If an update is available, it will be indicated next to the version number.
 
@@ -135,9 +162,19 @@ pip install -r requirements.txt --upgrade
 ---
 
 ## Function Overview
+<a name="function-overview"></a>
 
-- Independent editing of filenames and file extensions
-- Flexible replacement of entire names or selected parts
+- **Filename & Extension Editing:** Independent editing of names and extensions
+- **Flexible Replacement:** Replace entire names or selected parts
+- **Preview Workflow:** See changes before applying them
+- **Undo Functionality:** Revert changes if needed
+- **Search & Replace:** With wildcards, regex, and advanced options
+- **Automatic Counter:** Configurable numbering with duplicates handling
+- **Date/Time Placeholders:** Predefined and custom formats
+- **Case Transformation:** Uppercase, lowercase, heading, and mocking case
+- **Windows Compatibility:** Automatic sanitization of filenames
+- **External Editor:** Manual adjustments in text editor
+- **Validation:** Duplicate detection and filename length checks
 - Preview-based workflow:
   - Current filenames are shown on the left
   - New filenames are shown on the right
@@ -145,48 +182,53 @@ pip install -r requirements.txt --upgrade
 
 ---
 
-### Main Functions
+## Usage & Features
+<a name="usage--features"></a>
 
-#### **Filename Editing**
-- Placeholders:
-  - `{name}`: current filename
-  - `{name1-3}`: specific parts of the current filename
-  - `{counter}`: configurable counter
-  - `{date}`: current date or file modification date (selectable)
-  - `{time}`: current time or modification time (selectable)
-- Prefixes and suffixes
-- Complete filename replacement
-- Customizable date and time formats and separators
+### Filename & Extension Editing
 
-#### **File Extension Editing**
-- Placeholders:
-  - `{ext}`: current file extension
-  - `{ext1-3}`: specific parts of the current extension
-  - `{counter}`: configurable counter
-- Prefixes and suffixes
-- Complete extension replacement
+#### **Basic Placeholders**
+- `{name}`, `{nameX-Y}`: Current filename (full or sliced)
+- `{ext}`, `{extX-Y}`: File extension (full or sliced)
+- `{counter}`: Auto-incrementing counter
+- `{date}`: Configurable date format (YYYYMMDD, DDMMYYYY, etc.)
+- `{time}`: Configurable time format (HHMMSS, HHMM, etc.)
 
-#### **Search & Replace**
-- Wildcard support:
-  - `*` = replaces everything between the first and next occurrence
-  - `**` = replaces everything between the first and last occurrence
-  - `?` = represents a single arbitrary character
-- Optional features:
-  - Regular expressions
+**Custom Patterns (manual entry):**
+- Dates: `{yyyy-mm-dd}`, `{dd.mm.yyyy}`, `{yyyy dd mm}`, `{mm;dd;yyyy}`, `{yyyy_mm},`, `{mm:yyyy}`, `{yyyy}`
+- Times: `{hh-mm-ss}`, `{hh.mm}`, `{hhmmss}`
+- Separators: `-`, `_`, `.`, `:`, `;`, ` ` (space), or none  
+  - *Note: On Windows, `:` separators are automatically replaced with `_`* 
+
+### **Search & Replace**
+- **Wildcards:**
+  - `*` = everything between first and next occurrence
+  - `**` = everything between first and last occurrence
+  - `?` = single character
+- **Options:**
+  - Regex mode
   - Case sensitivity
   - Exact matching
   - Replace first match only
-  - Exclude file extensions
+  - Exclude extensions
 
-#### **Counter**
-- Automatic numbering with configurable start value, increment, and digit width
-- Optional: number duplicates only
+### **Counter**
+- Start value, increment, and digit width configurable
+- Option to number only duplicates
 
-#### **Advanced Options**
-- **Uppercase / lowercase conversion**
-- **Windows-compatible filenames:** automatically removes or replaces invalid characters (`<>:"/\|?*`) and prevents reserved names (`CON`, `PRN`, `AUX`, `NUL`, `COM1–COM9`, `LPT1–LPT9`)
-- **External editing:** open the preview list in a text editor for manual adjustments
+### **Case Transformation**
+- Lowercase, uppercase, heading case, or mocking case
+- Applies to filenames (extensions remain unchanged)
 
+### **Windows Compatibility**
+- Removes/replaces invalid characters: `<>:"\|?*`
+- Prevents reserved names: `CON`, `PRN`, `AUX`, `NUL`, etc.
+- Always enabled on Windows, optional on Linux
+
+### **Advanced Features**
+- **External Editor:** Edit preview list in text editor
+- **Validation:** Checks for duplicates and invalid filenames
+- **Undo History:** Revert changes until file list is modified
 ---
 
 ### Additional features
@@ -201,6 +243,7 @@ pip install -r requirements.txt --upgrade
 ---
 
 ## Behavior & Notes
+<a name="behavior--notes"></a>
 
 - **Filename length checks:** automatic validation for maximum filename length (Windows) and byte length (Linux)
 - **Windows-compatible naming:** always enabled on Windows, optional on Linux
@@ -221,6 +264,7 @@ While the application does not overwrite files automatically, unexpected issues 
 ---
 
 ## License
+<a name="license"></a>
 
 This project is licensed under the **MIT License**.  
 See [`LICENSE`](LICENSE) for the full license text.
@@ -232,6 +276,6 @@ All third-party license texts are collected in [`THIRD_PARTY_LICENSES.txt`](THIR
 
 ## Developer & Project Page
 
-**Developer:** Codemorra  
+**Developer:** Codemorra (Christopher Kranz)  
 **Project Page:** [https://github.com/codemorra/bulk-rename-py](https://github.com/codemorra/bulk-rename-py)  
 © 2026-present Codemorra – All rights reserved.
