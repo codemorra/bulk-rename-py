@@ -114,7 +114,7 @@ class CreateSections:
 
         # Date format combobox
         self.parent.cmb_date = QComboBox()
-        self.parent.cmb_date.addItems(['YYYYMMDD', 'DDMMYYYY', 'MMDDYYYY'])
+        self.parent.cmb_date.addItems(['YYYYMMDD', 'DDMMYYYY', 'MMDDYYYY', 'YYYYMM', 'MMYYYY', 'YYYY'])
         self.parent.cmb_date.setMaximumWidth(120)
 
         # Date separator label

@@ -67,7 +67,7 @@ ALLOWED = {
         'language': {'de', 'en'},
     },
     'rename': {
-        'date_format': {'YYYYMMDD', 'DDMMYYYY', 'MMDDYYYY'},
+        'date_format': {'YYYYMMDD', 'DDMMYYYY', 'MMDDYYYY', 'YYYYMM', 'MMYYYY', 'YYYY'},
         'date_seperator': {'-', '_', '.', ':', ';', 'none', 'space'},
         'time_format': {'HHMMSS', 'HHMM', 'HH'},
         'time_seperator': {'-', '_', '.', ':', ';', 'none', 'space'},

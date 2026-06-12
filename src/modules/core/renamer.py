@@ -59,7 +59,9 @@ class Renamer:
                     ext_stem,
                     "",
                     date_str,
-                    time_str
+                    time_str,
+                    p,
+                    cfg.dt.date_type
                 )
                 base_names.append(base_name)
 
@@ -198,7 +200,9 @@ class Renamer:
             ext,
             counter_str,
             date_str,
-            time_str
+            time_str,
+            p,
+            cfg.dt.date_type
         )
 
         new_ext = TokenProcessor.apply_name_mask(
@@ -207,7 +211,9 @@ class Renamer:
             ext,
             counter_str,
             date_str,
-            time_str
+            time_str,
+            p,
+            cfg.dt.date_type
         )
         if new_ext and not new_ext.startswith('.'):
             new_ext = f".{new_ext}"
@@ -252,8 +258,14 @@ class Renamer:
             date_str = dt.strftime("%Y%m%d")
         elif cfg.date_format == 'DDMMYYYY':
             date_str = dt.strftime("%d%m%Y")
-        else:
+        elif cfg.date_format == 'MMDDYYYY':
             date_str = dt.strftime("%m%d%Y")
+        elif cfg.date_format == 'YYYYMM':
+            date_str = dt.strftime("%Y%m")
+        elif cfg.date_format == 'MMYYYY':
+            date_str = dt.strftime("%m%Y")
+        else:  # YYYY
+            date_str = dt.strftime("%Y")
 
         # Get separator character
         sep = Renamer._sep_value(cfg.date_sep)
@@ -262,12 +274,22 @@ class Renamer:
         format_parts = {
             'YYYYMMDD': (4, 6),
             'DDMMYYYY': (2, 4),
-            'MMDDYYYY': (2, 4)
+            'MMDDYYYY': (2, 4),
+            'YYYYMM': (4,),
+            'MMYYYY': (2,),
+            'YYYY': ()
         }
 
         # Insert separators at appropriate positions
-        start1, start2 = format_parts[cfg.date_format]
-        return f"{date_str[:start1]}{sep}{date_str[start1:start2]}{sep}{date_str[start2:]}"
+        parts = format_parts[cfg.date_format]
+        if cfg.date_format in ['YYYYMMDD', 'DDMMYYYY', 'MMDDYYYY']:
+            start1, start2 = parts
+            return f"{date_str[:start1]}{sep}{date_str[start1:start2]}{sep}{date_str[start2:]}"
+        elif cfg.date_format in ['YYYYMM', 'MMYYYY']:
+            start1 = parts[0]
+            return f"{date_str[:start1]}{sep}{date_str[start1:]}"
+        else:  # YYYY
+            return date_str
 
     @staticmethod
     def _format_time(cfg: DateTimeCfg, path: Path) -> str:

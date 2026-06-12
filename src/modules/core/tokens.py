@@ -12,7 +12,9 @@ and their variants with slicing (e.g., {name1-3}, {ext1-2}).
 """
 
 import re
-from typing import Tuple, Dict, List
+from pathlib import Path
+from typing import Tuple, Dict, List, Optional
+from datetime import datetime
 
 
 # Patterns
@@ -39,7 +41,9 @@ class TokenProcessor:
             ext: str,
             counter: str,
             date_str: str,
-            time_str: str
+            time_str: str,
+            path: Optional[Path] = None,
+            date_type: str = 'current'
     ) -> str:
         """Apply placeholders in name mask.
 
@@ -52,6 +56,8 @@ class TokenProcessor:
             `counter` (str): Formatted counter
             `date_str` (str): Formatted date
             `time_str` (str): Formatted time
+            `path` (Optional[Path]): File path for date_type='change'
+            `date_type` (str): Date source ("current" or "change")
 
         **Returns:**
             `str`: Result after applying mask
@@ -94,6 +100,12 @@ class TokenProcessor:
                 return date_str
             if tok == 'time':
                 return time_str
+
+            # Handle custom date/time format patterns
+            if TokenProcessor._is_custom_date_format(tok):
+                return TokenProcessor._format_custom_date(tok, date_str, time_str, path, date_type)
+            elif TokenProcessor._is_custom_time_format(tok):
+                return TokenProcessor._format_custom_time(tok, time_str, path, date_type)
 
             # Return unknown tokens unchanged
             return f'{{{tok}}}'
@@ -208,3 +220,109 @@ class TokenProcessor:
         
         # Return sliced substring (Python uses 0-based indexing)
         return text[start-1:end]
+
+    @staticmethod
+    def _is_custom_date_format(tok: str) -> bool:
+        """Check if token is a custom date format.
+
+        **Parameters:**
+            `tok` (str): Token to check
+
+        **Returns:**
+            `bool`: True if token matches custom date format pattern
+        """
+        # Check for patterns like yyyy-mm-dd, dd.mm.yyyy, yyyymmdd, etc.
+        # Support separators: - _ . ; space : or no separator
+        return bool(re.fullmatch(r'(yyyy|yy|mm|dd)([\-._; :]?)((yyyy|yy|mm|dd)([\-._; :]?)(yyyy|yy|mm|dd))?', tok))
+
+    @staticmethod
+    def _is_custom_time_format(tok: str) -> bool:
+        """Check if token is a custom time format.
+
+        **Parameters:**
+            `tok` (str): Token to check
+
+        **Returns:**
+            `bool`: True if token matches custom time format pattern
+        """
+        # Check for patterns like hh-mm-ss, hh.mm, hhmmss, etc.
+        # Support separators: - _ . ; space : or no separator
+        return (bool(re.fullmatch(r'(hh|mm|ss)([\-._; :]?)(hh|mm|ss)([\-._; :]?)(hh|mm|ss)', tok)) or
+                bool(re.fullmatch(r'(hh|mm|ss)([\-._; :]?)(hh|mm|ss)', tok)) or
+                bool(re.fullmatch(r'(hh|mm|ss)', tok)))
+
+    @staticmethod
+    def _format_custom_date(format_pattern: str, date_str: str, time_str: str, path: Optional[Path] = None, date_type: str = 'current') -> str:
+        """Format date according to custom pattern.
+
+        **Parameters:**
+            `format_pattern` (str): Custom format pattern (e.g., 'yyyy-mm-dd')
+            `date_str` (str): Pre-formatted date string from configuration
+            `time_str` (str): Pre-formatted time string (unused for date)
+            `path` (Optional[Path]): File path for date_type='change'
+            `date_type` (str): Date source ("current" or "change")
+
+        **Returns:**
+            `str`: Formatted date string or original token if pattern is invalid
+        """
+        # Parse the custom format pattern
+        try:
+            # Replace common format placeholders with strftime format codes
+            pattern = format_pattern
+            pattern = pattern.replace('yyyy', '%Y')
+            pattern = pattern.replace('yy', '%y')
+            pattern = pattern.replace('mm', '%m')
+            pattern = pattern.replace('dd', '%d')
+
+            # Get datetime based on date_type
+            if date_type == 'change' and path:
+                try:
+                    ts = path.stat().st_mtime
+                    dt = datetime.fromtimestamp(ts)
+                except (FileNotFoundError, OSError, PermissionError):
+                    dt = datetime.now()
+            else:
+                dt = datetime.now()
+            
+            # Format using the parsed pattern
+            return dt.strftime(pattern)
+        except (ValueError, AttributeError):
+            # Return original token if formatting fails
+            return f'{{{format_pattern}}}'
+
+    @staticmethod
+    def _format_custom_time(format_pattern: str, time_str: str, path: Optional[Path] = None, date_type: str = 'current') -> str:
+        """Format time according to custom pattern.
+
+        **Parameters:**
+            `format_pattern` (str): Custom format pattern (e.g., 'hh-mm-ss')
+            `time_str` (str): Pre-formatted time string from configuration
+            `path` (Optional[Path]): File path for date_type='change'
+            `date_type` (str): Date source ("current" or "change")
+
+        **Returns:**
+            `str`: Formatted time string or original token if pattern is invalid
+        """
+        # Parse the custom format pattern
+        try:
+            # Replace common format placeholders with strftime format codes
+            pattern = format_pattern
+            pattern = pattern.replace('hh', '%H')
+            pattern = pattern.replace('mm', '%M')
+            pattern = pattern.replace('ss', '%S')
+
+            # Get datetime based on date_type
+            if date_type == 'change' and path:
+                try:
+                    ts = path.stat().st_mtime
+                    dt = datetime.fromtimestamp(ts)
+                except (FileNotFoundError, OSError, PermissionError):
+                    dt = datetime.now()
+            else:
+                dt = datetime.now()
+            
+            # Format using the parsed pattern
+            return dt.strftime(pattern)
+        except (ValueError, AttributeError):
+            # Return original token if formatting fails
+            return f'{{{format_pattern}}}'
