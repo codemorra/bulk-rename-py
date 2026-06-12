@@ -1,0 +1,2 @@
+# Test dependencies for Bulk Rename Py
+pytest>=7.0.0
