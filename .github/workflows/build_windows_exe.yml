@@ -17,10 +17,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.13
+      - name: Set up Python 3.14
         uses: actions/setup-python@v4
         with:
-          python-version: '3.13'
+          python-version: '3.14'
 
       - name: Install dependencies
         run: |
@@ -31,7 +31,7 @@ jobs:
       - name: Sync version from metadata.py into Windows version resource
         shell: pwsh
         run: |
-          python scripts/sync_version_windows.py
+          python scripts/windows_build.py
           git --no-pager diff -- packaging/windows/file_version.txt | Out-Host
 
       - name: Build Windows EXE (PyInstaller, One-Dir)

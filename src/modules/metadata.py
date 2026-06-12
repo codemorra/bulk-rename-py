@@ -17,16 +17,43 @@ def get_license_text() -> str:
 
     Reads LICENSE and THIRD_PARTY_LICENSES.txt files and combines them
     with separating newlines for display in About dialog.
+    
+    Uses fallback logic to find license files:
+    1. First tries src/licenses/ (for Windows EXE and normal operation)
+    2. Then tries project root (for direct Python execution)
+    3. Then tries relative paths (for development)
 
     **Returns:**
         `str`: Combined license texts
+    
+    **Raises:**
+        `RuntimeError`: If no license files can be found
     """
-    # Get root directory of source files
-    src_root = Path(__file__).resolve().parent.parent
+    def find_license_file(filename: str) -> Path:
+        """Find license file with fallback logic."""
+        # Get root directory of source files
+        src_root = Path(__file__).resolve().parent.parent
+        
+        # Try 1: src/licenses/ (primary location for builds)
+        src_license = src_root / "licenses" / filename
+        if src_license.exists():
+            return src_license
+        
+        # Try 2: Project root (for direct execution from repo)
+        root_license = src_root.parent.parent / filename
+        if root_license.exists():
+            return root_license
+        
+        # Try 3: Relative to src root (fallback)
+        relative_license = src_root.parent / filename
+        if relative_license.exists():
+            return relative_license
+        
+        raise RuntimeError(f"Could not find {filename} in any expected location")
 
-    # Load main license and third-party licenses
-    license_text = (src_root / "licenses/LICENSE").read_text(encoding="utf-8")
-    third_party_text = (src_root / "licenses/THIRD_PARTY_LICENSES.txt").read_text(encoding="utf-8")
+    # Find and load license files with fallback logic
+    license_text = find_license_file("LICENSE").read_text(encoding="utf-8")
+    third_party_text = find_license_file("THIRD_PARTY_LICENSES.txt").read_text(encoding="utf-8")
 
     # Combine with separating newlines
     return license_text + "\n\n\n\n\n" + third_party_text
