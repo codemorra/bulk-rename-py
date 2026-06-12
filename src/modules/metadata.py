@@ -63,8 +63,8 @@ def get_license_text() -> str:
 APP_INFO = {
     'name': 'Bulk Rename Py',
     'version': '1.0.1',
-    'developer': 'Codemorra',
-    'copyright': '© 2026–present Codemorra',
+    'developer': 'Codemorra (Christopher Kranz)',
+    'copyright': '© 2026–present Codemorra (Christopher Kranz)',
     'license': 'MIT',
     'description': 'Graphical application for bulk file renaming',
     'url': 'https://github.com/codemorra/bulk-rename-py',

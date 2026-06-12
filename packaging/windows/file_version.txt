@@ -14,11 +14,11 @@ VSVersionInfo(
   kids=[
     StringFileInfo([
       StringTable('040904B0', [
-        StringStruct('CompanyName', 'Codemorra'),
+        StringStruct('CompanyName', 'Codemorra (Christopher Kranz)'),
         StringStruct('FileDescription', 'Bulk Rename Py'),
         StringStruct('FileVersion', '1.0.0'),
         StringStruct('InternalName', 'BulkRenamePy'),
-        StringStruct('LegalCopyright', '© 2026–present Codemorra'),
+        StringStruct('LegalCopyright', '© 2026–present Codemorra (Christopher Kranz)'),
         StringStruct('OriginalFilename', 'BulkRenamePy.exe'),
         StringStruct('ProductName', 'Bulk Rename Py'),
         StringStruct('ProductVersion', '1.0.0')
