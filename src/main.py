@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# Bulk Rename Py
+# Bulk Rename Py - Main Entry Point
 # © 2026–present Codemorra (Christopher Kranz)
 # Licensed under the MIT License (see LICENSE file)
 
 """
-Starting point of Bulk Rename Py.
+Main entry point for Bulk Rename Py application.
 
-Starts the Qt application (PySide6), loads the GUI (MainWindow),
-and transfers control to the Qt event loop.
+This module serves as the primary entry point when running the application.
+It initializes the Qt application environment, configures platform-specific
+settings, and launches the main window. The application uses PySide6 for its GUI.
 """
 
 from __future__ import annotations
@@ -25,15 +26,20 @@ from modules.gui.main_window import MainWindow
 
 
 def _apply_windows_theme(app: QApplication) -> None:
-    """
-    Special style adjustments in Windows.
+    """Apply Windows-specific theme adjustments.
 
-    **Returns:**
-        `None`
+    Configures the Fusion style and sets up automatic light/dark mode switching
+    based on system preferences. This function is only called on Windows systems.
+
+    Args:
+        app: The QApplication instance to configure
+
+    Returns:
+        None
     """
     app.setStyle("Fusion")
 
-    # automatic switching between light and dark
+    # Automatic switching between light and dark mode
     def _apply_scheme(scheme: Qt.ColorScheme) -> None:
         if scheme == Qt.ColorScheme.Dark:
             app.setPalette(app.style().standardPalette())
@@ -41,22 +47,34 @@ def _apply_windows_theme(app: QApplication) -> None:
             app.setPalette(app.style().standardPalette())
 
     try:
+        # Get current system color scheme
         scheme = QGuiApplication.styleHints().colorScheme()
         _apply_scheme(scheme)
+        # Connect signal for future scheme changes
         QGuiApplication.styleHints().colorSchemeChanged.connect(_apply_scheme)
     except AttributeError:
+        # Fallback if color scheme detection fails
         pass
 
 
 def main() -> int:
-    """
-    Entry point of the application.
+    """Application entry point and main execution function.
 
-    Configures high-DPI scaling, creates the `QApplication`, sets the style to
-    `Fusion`, initializes `MainWindow`, and starts the Qt event loop.
+    Performs the following setup steps:
+    1. Configures high-DPI scaling for proper display on all screens
+    2. Creates the QApplication instance
+    3. Applies platform-specific theme settings
+    4. Initializes and displays the main window
+    5. Starts the Qt event loop
 
-    **Returns:**
-        `int`: Exit code of `QApplication.exec()`
+    This function is called when the script is executed directly and serves
+    as the entry point for both direct execution and packaged distributions.
+
+    Returns:
+        int: The application exit code from QApplication.exec()
+
+    Raises:
+        SystemExit: When called from __main__ (wraps the exit code)
     """
     QGuiApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough

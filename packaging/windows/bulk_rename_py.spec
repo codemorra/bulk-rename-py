@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 # Bulk Rename Py
-# © 2026–present Codemorra
+# © 2026–present Codemorra (Christopher Kranz)
 # Licensed under the MIT License (see LICENSE file)
 
 from pathlib import Path
@@ -14,7 +14,7 @@ SRC  = ROOT / "src"
 block_cipher = None
 
 a = Analysis(
-    [str(SRC / "bulk_rename_py.py")],
+    [str(SRC / "main.py")],
     pathex=[str(SRC)],
     binaries=[],
     datas=[],
