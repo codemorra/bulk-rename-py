@@ -58,7 +58,7 @@ class Validator:
         if windows_safe:
             name = ''.join(ch if ch not in ILLEGAL_WIN_CHARS else '_' for ch in name)
             if Validator._is_reserved_win_name(name):
-                name = f"_{name}_"
+                name = f"_{name}"
 
         # Replace '/' with Unicode fraction slash for Linux compatibility
         if linux_safe:

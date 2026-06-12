@@ -231,7 +231,8 @@ class Renamer:
         # Sanitize for Windows compatibility if enabled
         if cfg.case.windows_names:
             new_name = Validator.sanitize_filename(new_name, windows_safe=True)
-            new_ext = Validator.sanitize_filename(new_ext, windows_safe=True)
+            if new_ext:  # Only sanitize extension if it's not empty
+                new_ext = Validator.sanitize_filename(new_ext, windows_safe=True)
 
         return f"{new_name}{new_ext}"
 
