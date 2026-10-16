@@ -1,0 +1,14 @@
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+console_output_style = "progress"
+markers = [
+    "slow: mark tests as slow (deselect with '-m \"not slow\"')",
+    "integration: mark as integration test",
+    "unit: mark as unit test",
+]
+
+[tool.ruff]
+target-version = "py314"
+extend-exclude = ["src/resources/icons_rc.py"]

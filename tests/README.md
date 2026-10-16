@@ -17,6 +17,9 @@
 - Context menu, import cancellation, drag-and-drop, and undo button state
 - Pending preview updates before rename and editor export
 - Editor retry, cancellation, encoding, and temporary file cleanup
+- Independent core imports without Qt, requests, or license resources
+- Atomic settings writes, configuration validation, and shared counter ranges
+- File collection options, path aliases, and numeric release validation
 - Edge cases handled
 
 ## Requirements
@@ -28,7 +31,7 @@ python -m pip install -r requirements.txt -r tests/requirements.txt
 ## Run Tests
 
 ### All tests
-Run from the repository root. The root-level `pytest.ini` configures test discovery
+Run from the repository root. The root-level `pyproject.toml` configures test discovery
 and the source import path.
 
 ```bash
@@ -65,11 +68,22 @@ consistency across midnight, and reuse of file metadata and prepared search
 patterns. Filename validation also covers UTF-8 byte limits and Windows UTF-16
 code-unit limits.
 
+`test_settings.py` checks preservation of existing configuration files after
+write failures. Its window test uses temporary settings and checks shared GUI
+instances and counter limits. `test_importer.py` covers collection and visibility
+options. `test_update_checker.py` uses mocked responses and makes no network
+requests.
+
+`test_module_imports.py` also runs a subprocess without site packages to verify
+core imports. Its icon check renders the SVG resource from `src/resources/` with
+PySide6 Essentials; the Addons package is not required.
+
 ## Lint Checks
 
-Ruff is included in `tests/requirements.txt`. Run it for the Python files being
-changed, for example:
+Ruff is included in `tests/requirements.txt`. Its Python target is configured in
+`pyproject.toml`; compiled Qt resource code is excluded because it is generated.
+Check application code and tests with:
 
 ```bash
-python -m ruff check src/modules/core/file_operations.py tests
+python -m ruff check src tests
 ```

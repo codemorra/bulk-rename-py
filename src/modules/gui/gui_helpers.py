@@ -9,14 +9,11 @@ from __future__ import annotations
 
 import os
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QBrush, QColor
-from PySide6.QtWidgets import QMainWindow, QMessageBox
+from PySide6.QtWidgets import QMessageBox
 
 from ..settings import set_language_in_config
 
 # Constants
-MIN_WINDOW_WIDTH = 1
 DEFAULT_TOKEN_NAME = '{name}'
 DEFAULT_TOKEN_EXT = '{ext}'
 DEFAULT_TOKEN_COUNTER = '{counter}'
@@ -43,20 +40,6 @@ class GUIHelpers:
             `None`
         """
         self.main_window = main_window
-
-    def resizeEvent(self, e) -> None:
-        """Handle window resize events to enforce minimum width.
-
-        **Parameters:**
-            `e`: Resize event
-
-        **Returns:**
-            `None`
-        """
-        if self.main_window.width() < self.main_window.MIN_WIDTH:
-            self.main_window.resize(self.main_window.MIN_WIDTH, max(self.main_window.height(), self.main_window.minimumSizeHint().height()))
-
-        QMainWindow.resizeEvent(self.main_window, e)
 
     def tr(self, key: str) -> str:
         """Translate text using application translator.
@@ -249,43 +232,3 @@ class GUIHelpers:
         # Apply tooltips to all mapped UI elements
         for attr, tooltip_key in tooltip_mapping.items():
             getattr(self.main_window, attr).setToolTip(self.tr(tooltip_key))
-
-    def format_overlen_tooltip(self, messages: list[str]) -> str:
-        """Format tooltip text from list of messages.
-
-        **Parameters:**
-            `messages` (list[str]): List of message strings
-
-        **Returns:**
-            `str`: Formatted tooltip text
-        """
-        # Join non-empty messages with separator
-        msgs = ' / '.join(m for m in messages if m)
-
-        return f'{msgs} ' if msgs else ''
-
-    def style_preview_cell(self, item, invalid: bool, tooltip_text: str, fallback_name: str) -> None:
-        """Style preview table cell based on validation status.
-
-        **Parameters:**
-            `item`: Table item to style
-            `invalid` (bool): Whether item is invalid
-            `tooltip_text` (str): Tooltip text for invalid items
-            `fallback_name` (str): Fallback tooltip text
-
-        **Returns:**
-            `None`
-        """
-        # Set italic font for invalid items
-        cell_font = item.font()
-        cell_font.setItalic(bool(invalid))
-        item.setFont(cell_font)
-
-        if invalid:
-            # Style invalid items with red text and error tooltip
-            item.setForeground(QBrush(QColor(Qt.red)))
-            item.setToolTip(tooltip_text or fallback_name)
-        else:
-            # Style valid items with default text and normal tooltip
-            item.setForeground(QBrush())
-            item.setToolTip(fallback_name)

@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-
-# Bulk Rename Py
-# © 2026–present Codemorra (Christopher Kranz)
-# Licensed under the MIT License (see LICENSE file)
-
 """Metadata module for Bulk Rename Py.
 
 Provides application metadata and license information.
@@ -20,8 +14,7 @@ def get_license_text() -> str:
     
     Uses fallback logic to find license files:
     1. First tries src/licenses/ (for Windows EXE and normal operation)
-    2. Then tries project root (for direct Python execution)
-    3. Then tries relative paths (for development)
+    2. Then tries the project root (for direct Python execution)
 
     **Returns:**
         `str`: Combined license texts
@@ -39,16 +32,11 @@ def get_license_text() -> str:
         if src_license.exists():
             return src_license
         
-        # Try 2: Project root (for direct execution from repo)
-        root_license = src_root.parent.parent / filename
-        if root_license.exists():
+        # Try 2: Project root for direct execution from the repository
+        root_license = src_root.parent / filename
+        if root_license.is_file():
             return root_license
-        
-        # Try 3: Relative to src root (fallback)
-        relative_license = src_root.parent / filename
-        if relative_license.exists():
-            return relative_license
-        
+
         raise RuntimeError(f"Could not find {filename} in any expected location")
 
     # Find and load license files with fallback logic
@@ -71,5 +59,4 @@ APP_INFO = {
     'status': 'release',
     'python_requires': '>=3.14',
     'update_repo': 'codemorra/bulk-rename-py',
-    'license_text': get_license_text()  # Combined license texts
 }

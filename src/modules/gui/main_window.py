@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-
-# Bulk Rename Py
-# © 2026–present Codemorra (Christopher Kranz)
-# Licensed under the MIT License (see LICENSE file)
-
 """Main window module for Bulk Rename Py.
 
 Handles the main application window setup, UI layout, menu bar configuration,
@@ -11,33 +5,48 @@ table management, and signal handling for the bulk file renaming application.
 """
 
 from __future__ import annotations
-import os
-import re
-import sys
-import tempfile
-import webbrowser
+
 from pathlib import Path
-from PySide6.QtCore import Qt, QTimer, QUrl, QEvent
+
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import (
-    QAction, QActionGroup, QKeySequence,
-    QDesktopServices, QBrush, QColor, QFontDatabase, QFont
-    )
-from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel,
-    QPushButton, QCheckBox, QLineEdit, QSpinBox, QComboBox, QTableWidgetItem,
-    QHeaderView, QAbstractItemView, QGridLayout, QLayout, QMessageBox,
-    QFileDialog, QMenu, QSizePolicy, QPlainTextEdit, QSpacerItem,
-    QDialog, QDialogButtonBox, QStyle, QTableWidget
+    QAction,
+    QActionGroup,
+    QKeySequence,
 )
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QGridLayout,
+    QHBoxLayout,
+    QHeaderView,
+    QLayout,
+    QMainWindow,
+    QPushButton,
+    QSizePolicy,
+    QSpacerItem,
+    QTableWidget,
+    QVBoxLayout,
+    QWidget,
+)
+
 from ..i18n import Translator
 from ..settings import (
-    get_config, get_language_from_config, ensure_config_file, CONFIG_FILE
-    )
-from .rename_manager import RenameManager
-from .table_manager import TableManager
-from .gui_helpers import GUIHelpers, DEFAULT_TOKEN_NAME, DEFAULT_TOKEN_EXT, DEFAULT_TOKEN_COUNTER, DEFAULT_TOKEN_DATE, DEFAULT_TOKEN_TIME, DEFAULT_TOKEN_NAME_SLICE, DEFAULT_TOKEN_EXT_SLICE
+    get_config,
+)
 from .about_dialog import AboutDialog
 from .create_sections import CreateSections
+from .gui_helpers import (
+    DEFAULT_TOKEN_COUNTER,
+    DEFAULT_TOKEN_DATE,
+    DEFAULT_TOKEN_EXT,
+    DEFAULT_TOKEN_EXT_SLICE,
+    DEFAULT_TOKEN_NAME,
+    DEFAULT_TOKEN_NAME_SLICE,
+    DEFAULT_TOKEN_TIME,
+    GUIHelpers,
+)
+from .rename_manager import RenameManager
+from .table_manager import TableManager
 
 # Constants
 MIN_WINDOW_WIDTH = 1
@@ -84,22 +93,12 @@ class MainWindow(QMainWindow):
             `None`
         """
         # Load config + language
-        ensure_config_file()
         self.cfg = get_config()
-        self.translator = Translator(get_language_from_config())
+        self.translator = Translator(self.cfg.get('general', 'language'))
 
         # Initialize helper attributes
         self._next_window = None
         self.helpers = GUIHelpers(self)
-
-        # Always enforce Windows-compatible names in Windows
-        if self.helpers.is_windows():
-            if (not self.cfg.has_section('advanced')) or (not self.cfg.getboolean('advanced', 'windows_names', fallback=False)):
-                if not self.cfg.has_section('advanced'):
-                    self.cfg.add_section('advanced')
-                self.cfg.set('advanced', 'windows_names', 'True')
-                with CONFIG_FILE.open('w', encoding='utf-8') as f:
-                    self.cfg.write(f)
 
         # Timer for delayed preview of new file names
         self._update_timer = QTimer(self)
@@ -108,8 +107,8 @@ class MainWindow(QMainWindow):
 
         # Variable for multi-level in-memory undo
         self._undo_stack: list[list[tuple[Path, Path]]] = []
-        self.rename_manager = RenameManager(self)
         self.table_manager = TableManager(self)
+        self.rename_manager = RenameManager(self)
         self.about_dialog = AboutDialog(self)
         self.create_sections = CreateSections(self)
 
@@ -241,9 +240,6 @@ class MainWindow(QMainWindow):
 
         # connect events
         hdr.sectionResized.connect(lambda idx, old, new: self.table_manager.on_header_resized(idx, old, new))
-
-        # balancing columns during viewport resize
-        self.table.viewport().installEventFilter(self)
 
         # set initial 50/50
         QTimer.singleShot(0, lambda: self.table_manager.init_equal_columns())

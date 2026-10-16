@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-# Bulk Rename Py - Main Entry Point
-# © 2026–present Codemorra (Christopher Kranz)
-# Licensed under the MIT License (see LICENSE file)
-
 """
 Main entry point for Bulk Rename Py application.
 
@@ -14,15 +7,16 @@ settings, and launches the main window. The application uses PySide6 for its GUI
 """
 
 from __future__ import annotations
+
 import os
 import sys
-import PySide6.QtSvg
-from PySide6.QtCore import Qt, QSize
+
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtWidgets import QApplication
-from PySide6.QtGui import QIcon, QGuiApplication
-from modules import icons_rc
-from modules.gui import main_window
+
 from modules.gui.main_window import MainWindow
+from resources import icons_rc  # noqa: F401 -- Register compiled Qt resources on import.
 
 
 def _apply_windows_theme(app: QApplication) -> None:
@@ -39,22 +33,13 @@ def _apply_windows_theme(app: QApplication) -> None:
     """
     app.setStyle("Fusion")
 
-    # Automatic switching between light and dark mode
-    def _apply_scheme(scheme: Qt.ColorScheme) -> None:
-        if scheme == Qt.ColorScheme.Dark:
-            app.setPalette(app.style().standardPalette())
-        else:
-            app.setPalette(app.style().standardPalette())
+    # Refresh the Fusion palette when the system color scheme changes
+    def _apply_scheme(_scheme: Qt.ColorScheme) -> None:
+        app.setPalette(app.style().standardPalette())
 
-    try:
-        # Get current system color scheme
-        scheme = QGuiApplication.styleHints().colorScheme()
-        _apply_scheme(scheme)
-        # Connect signal for future scheme changes
-        QGuiApplication.styleHints().colorSchemeChanged.connect(_apply_scheme)
-    except AttributeError:
-        # Fallback if color scheme detection fails
-        pass
+    hints = QGuiApplication.styleHints()
+    _apply_scheme(hints.colorScheme())
+    hints.colorSchemeChanged.connect(_apply_scheme)
 
 
 def main() -> int:

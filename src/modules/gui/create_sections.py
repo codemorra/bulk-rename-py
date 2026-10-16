@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-
-# Bulk Rename Py
-# © 2026–present Codemorra (Christopher Kranz)
-# Licensed under the MIT License (see LICENSE file)
-
 """Create sections module for Bulk Rename Py.
 
 Handles creation of UI sections including rename, extension, replace,
@@ -11,29 +5,25 @@ counter, and advanced options sections for the bulk file renaming application.
 """
 
 from __future__ import annotations
-import os
-import re
-import sys
-import tempfile
-import webbrowser
-from pathlib import Path
-from PySide6.QtCore import Qt, QTimer, QUrl, QEvent
-from PySide6.QtGui import (
-    QAction, QActionGroup, QKeySequence,
-    QDesktopServices, QBrush, QColor, QFontDatabase, QFont
-    )
+
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel,
-    QPushButton, QCheckBox, QLineEdit, QSpinBox, QComboBox, QTableWidgetItem,
-    QHeaderView, QAbstractItemView, QGridLayout, QLayout, QMessageBox,
-    QFileDialog, QMenu, QSizePolicy, QPlainTextEdit, QSpacerItem,
-    QDialog, QDialogButtonBox, QStyle, QTableWidget
+    QCheckBox,
+    QComboBox,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QSizePolicy,
+    QSpinBox,
+    QVBoxLayout,
 )
 
-# Constants
-MIN_WINDOW_WIDTH = 1
-DEFAULT_WINDOW_SIZE = (1280, 800)
+from ..settings import RANGES
 
+# Constants
 
 # style for the GUI sections
 GROUPBOX_STYLE = """
@@ -375,11 +365,11 @@ class CreateSections:
 
         # Calls the help function for creating the individual spin boxes
         self.parent.spin_start = add_counter_row(
-            self.helpers.tr('sections.counter.lbl_start'), 'counter', 'start', 0, 999999)
+            self.helpers.tr('sections.counter.lbl_start'), 'counter', 'start', *RANGES[('counter', 'start')])
         self.parent.spin_step = add_counter_row(
-            self.helpers.tr('sections.counter.lbl_step'), 'counter', 'step', 1, 9999)
+            self.helpers.tr('sections.counter.lbl_step'), 'counter', 'step', *RANGES[('counter', 'step')])
         self.parent.spin_digits = add_counter_row(
-            self.helpers.tr('sections.counter.lbl_digits'), 'counter', 'digits', 1, 10, 45)
+            self.helpers.tr('sections.counter.lbl_digits'), 'counter', 'digits', *RANGES[('counter', 'digits')], width=45)
 
         # Checkbox for inversion
         self.parent.cb_dupes = QCheckBox(self.helpers.tr('sections.counter.dupes'))
@@ -449,7 +439,6 @@ class CreateSections:
 
         # Loads values from the config
         self.helpers.set_combo_by_data(self.parent.cmb_case, self.cfg.get('advanced', 'case', fallback='unchanged'))
-        self.parent.cb_windows.setChecked(self.cfg.getboolean('advanced', 'windows_names', fallback=False))
 
         # Saves values in the config
         self.parent.cmb_case.currentIndexChanged.connect(

@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-
-# Bulk Rename Py
-# © 2026–present Codemorra (Christopher Kranz)
-# Licensed under the MIT License (see LICENSE file)
-
 """Settings module for Bulk Rename Py.
 
 Handles application configuration including automatic file creation,
@@ -14,13 +8,16 @@ for Windows and Linux systems.
 """
 
 from __future__ import annotations
-import os
+
 import configparser
+import logging
+import os
+import tempfile
 from pathlib import Path
-from PySide6.QtCore import QLocale
 
 # Constants
-if os.name == 'nt':  # Windows
+IS_WINDOWS = os.name == 'nt'
+if IS_WINDOWS:  # Windows
     base_dir = Path(os.getenv('APPDATA', Path.home() / 'AppData' / 'Roaming'))
     CONFIG_DIR = base_dir / 'BulkRenamePy'
 else:  # Linux
@@ -28,6 +25,7 @@ else:  # Linux
     CONFIG_DIR = Path(_XDG) / 'BulkRenamePy' if _XDG else Path.home() / '.config' / 'BulkRenamePy'
 
 CONFIG_FILE = CONFIG_DIR / 'config.ini'
+logger = logging.getLogger(__name__)
 
 # Default configuration
 DEFAULTS = {
@@ -79,8 +77,8 @@ ALLOWED = {
 }
 
 # Number ranges
-MAX_COUNTER_START = 10000
-MAX_COUNTER_STEP = 1000
+MAX_COUNTER_START = 999999
+MAX_COUNTER_STEP = 9999
 MAX_COUNTER_DIGITS = 10
 
 RANGES = {
@@ -133,8 +131,12 @@ def get_config() -> configparser.ConfigParser:
     ensure_config_file()
 
     # Load configuration from disk
-    cfg = configparser.ConfigParser()
-    cfg.read(CONFIG_FILE, encoding='utf-8')
+    cfg = configparser.ConfigParser(interpolation=None)
+    try:
+        with CONFIG_FILE.open('r', encoding='utf-8') as stream:
+            cfg.read_file(stream)
+    except (OSError, UnicodeError, configparser.Error) as e:
+        raise RuntimeError(f"Failed to read configuration {CONFIG_FILE}: {e}") from e
 
     # Validate and sanitize configuration
     if _sanitize_config(cfg):
@@ -150,7 +152,7 @@ def get_language_from_config() -> str:
     """
     return get_config().get('general', 'language')
 
-def set_cfg(section: str, key: str, value) -> None:
+def set_cfg(section: str, key: str, value) -> configparser.ConfigParser:
     """Set configuration value with validation.
 
     Sets a configuration value, validates it, and persists changes.
@@ -162,13 +164,13 @@ def set_cfg(section: str, key: str, value) -> None:
         `value` (Any): Value to set
 
     **Returns:**
-        `None`
+        `configparser.ConfigParser`: Validated and persisted configuration
 
     **Raises:**
         `RuntimeError`: If configuration cannot be saved
     """
     # Force Windows-specific rule
-    if section == 'advanced' and key == 'windows_names' and os.name == 'nt':
+    if section == 'advanced' and key == 'windows_names' and IS_WINDOWS:
         value = True
 
     # Get current configuration
@@ -180,7 +182,9 @@ def set_cfg(section: str, key: str, value) -> None:
 
     # Set value and save
     cfg.set(section, key, _to_str(value))
+    _sanitize_config(cfg)
     _save_config(cfg)
+    return cfg
 
 def set_language_in_config(lang_code: str) -> None:
     """Set language in configuration.
@@ -238,7 +242,7 @@ def _build_cfg_from_defaults(*, override_language: str | None = None) -> configp
         `configparser.ConfigParser`: Configured ConfigParser instance
     """
     # Create new configuration
-    cfg = configparser.ConfigParser()
+    cfg = configparser.ConfigParser(interpolation=None)
 
     # Populate with defaults
     for sec, kv in DEFAULTS.items():
@@ -250,6 +254,7 @@ def _build_cfg_from_defaults(*, override_language: str | None = None) -> configp
     if override_language is not None:
         cfg.set('general', 'language', override_language)
 
+    _sanitize_config(cfg)
     return cfg
 
 def _sanitize_config(cfg: configparser.ConfigParser) -> bool:
@@ -307,6 +312,10 @@ def _sanitize_config(cfg: configparser.ConfigParser) -> bool:
             cfg.set(sec, key, str(clamped))
             changed = True
 
+    if IS_WINDOWS and not cfg.getboolean('advanced', 'windows_names'):
+        cfg.set('advanced', 'windows_names', 'True')
+        changed = True
+
     return changed
 
 def _detect_system_language() -> str:
@@ -319,12 +328,14 @@ def _detect_system_language() -> str:
         `str`: Detected language code ('de' or 'en')
     """
     try:
+        from PySide6.QtCore import QLocale
+
         bcp47 = QLocale.system().bcp47Name().lower()
         # Only return 'de' if we're very confident it's a German system
-        if bcp47.startswith('de') or bcp47 == 'de':
+        if bcp47.split('-', 1)[0] == 'de':
             return 'de'
-    except Exception:
-        pass
+    except (ImportError, RuntimeError):
+        return 'en'
     
     # Default to English for reliability
     return 'en'
@@ -379,12 +390,25 @@ def _save_config(cfg: configparser.ConfigParser) -> None:
     **Raises:**
         `RuntimeError`: If configuration cannot be saved
     """
+    temporary = None
     try:
         # Ensure directory exists
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
-        # Write configuration file
-        with CONFIG_FILE.open('w', encoding='utf-8') as f:
-            cfg.write(f)
-    except (OSError, IOError) as e:
+        # Replace only after writing and flushing a complete adjacent temporary file
+        with tempfile.NamedTemporaryFile(
+                mode='w', encoding='utf-8', dir=CONFIG_DIR,
+                prefix='.config-', suffix='.tmp', delete=False) as stream:
+            temporary = Path(stream.name)
+            cfg.write(stream)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, CONFIG_FILE)
+    except (OSError, UnicodeError) as e:
         raise RuntimeError(f"Failed to save configuration: {e}") from e
+    finally:
+        if temporary is not None:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                logger.warning('Could not remove temporary settings file %s', temporary, exc_info=True)

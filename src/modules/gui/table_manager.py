@@ -12,13 +12,8 @@ from PySide6.QtCore import QEvent, QSignalBlocker, Qt
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import QMenu, QMessageBox, QTableWidgetItem
 
-# Import functions from helpers
-from .gui_helpers import GUIHelpers
-
 # Constants
 PREVIEW_DELAY_MS = 60
-MIN_COLUMN_WIDTH = 160
-COLUMN_RATIO_THRESHOLD = 0.3
 INVALID_COLOR = QColor(Qt.red)
 
 
@@ -39,7 +34,7 @@ class TableManager:
             `None`
         """
         self.main_window = main_window
-        self.helpers = GUIHelpers(main_window)
+        self.helpers = main_window.helpers
 
     def format_overlen_tooltip(self, messages: list[str]) -> str:
         """Format tooltip text from list of messages.
@@ -394,6 +389,7 @@ class TableManager:
         if chosen == act_remove:
             # Remove selected rows if remove action was chosen
             self.remove_selected_rows()
+        menu.deleteLater()
 
     def remove_selected_rows(self) -> None:
         """Remove selected rows from table.
