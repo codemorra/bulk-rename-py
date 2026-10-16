@@ -33,7 +33,7 @@ def get_license_text() -> str:
 # Application metadata dictionary
 APP_INFO = {
     'name': 'Bulk Rename Py',
-    'version': '1.1.0',
+    'version': '1.1.1',
     'developer': 'Christopher Kranz',
     'copyright': '© 2026–present Christopher Kranz',
     'license': 'MIT',
