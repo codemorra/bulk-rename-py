@@ -1,12 +1,20 @@
-# -*- coding: utf-8 -*-
 """Edge case tests for Bulk Rename Py."""
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from modules.core.renamer import Renamer
-from modules.core.validation import Validator
-from modules.core.types import RenameCfg, DateTimeCfg, CounterCfg, MaskCfg, CaseCfg, ReplaceCfg
 from modules.core.tokens import TokenProcessor
+from modules.core.types import (
+    CaseCfg,
+    CounterCfg,
+    DateTimeCfg,
+    MaskCfg,
+    RenameCfg,
+    ReplaceCfg,
+)
+from modules.core.validation import Validator
 
 
 class TestEdgeCases:
