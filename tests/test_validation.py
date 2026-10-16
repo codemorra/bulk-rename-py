@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 from modules.core.validation import Validator
 
 
@@ -35,10 +33,8 @@ class TestValidator:
         # Should fail Windows validation
         assert Validator.validate_path_length(tmp_test_dir, long_name, platform="windows") == False
         
-        # Should pass Linux validation (usually)
-        # Note: This might fail on some systems depending on actual path length
-        linux_result = Validator.validate_path_length(tmp_test_dir, long_name, platform="linux")
-        # We don't assert this as it depends on the actual path length
+        # Should fail Linux validation because the filename exceeds 255 bytes
+        assert not Validator.validate_path_length(tmp_test_dir, long_name, platform="linux")
     
     def test_conflict_detection(self):
         """Test conflict detection in rename operations."""

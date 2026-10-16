@@ -2,7 +2,6 @@
 
 import os
 import sys
-from pathlib import Path
 
 import pytest
 
@@ -96,7 +95,6 @@ def duplicate_config():
         DateTimeCfg,
         MaskCfg,
         RenameCfg,
-        ReplaceCfg,
     )
     
     return RenameCfg(

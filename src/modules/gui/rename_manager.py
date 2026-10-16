@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-
-# Bulk Rename Py
-# © 2026–present Codemorra (Christopher Kranz)
-# Licensed under the MIT License (see LICENSE file)
-
 """Rename manager module for Bulk Rename Py.
 
 Handles file renaming operations, configuration collection, validation,
@@ -11,23 +5,31 @@ and preview generation for the bulk rename functionality.
 """
 
 from __future__ import annotations
+
+import logging
 import os
-import subprocess
 import re
 import tempfile
 from pathlib import Path
+
 from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import QMessageBox, QPlainTextEdit, QFileDialog, QTableWidgetItem
-from ..core.types import (
-    RenameCfg, DateTimeCfg, CounterCfg, ReplaceCfg, CaseCfg, MaskCfg
-)
+from PySide6.QtWidgets import QFileDialog, QMessageBox, QPlainTextEdit, QTableWidgetItem
+
 from ..core.renamer import Renamer
+from ..core.types import (
+    CaseCfg,
+    CounterCfg,
+    DateTimeCfg,
+    MaskCfg,
+    RenameCfg,
+    ReplaceCfg,
+)
 from ..core.validation import Validator
-from ..settings import set_cfg, reset_config
-from ..importer import ImportOptions, Importer
-from .table_manager import TableManager
+from ..importer import Importer, ImportOptions
+from ..settings import reset_config, set_cfg
 from .gui_helpers import GUIHelpers
+from .table_manager import TableManager
 
 # Constants
 DEFAULT_EDITOR = 'notepad'
@@ -35,6 +37,8 @@ TEMP_FILE_SUFFIX = '.txt'
 ENCODING = 'utf-8'
 COMMENT_CHAR = '#'
 UNCHANGED_CASE = 'unchanged'
+
+logger = logging.getLogger(__name__)
 
 
 class RenameManager:
@@ -181,10 +185,10 @@ class RenameManager:
             platform = 'windows' if self.helpers.is_windows() else 'linux'
             
             # Validate filename for Windows
-            if platform == 'windows' and cfg.case.windows_names:
-                if not Validator.validate_filename(new_name, windows_safe=True):
-                    invalid = True
-                    messages.append(self.helpers.tr('tooltips.table.filename_invalid_chars'))
+            if (platform == 'windows' and cfg.case.windows_names
+                    and not Validator.validate_filename(new_name, windows_safe=True)):
+                invalid = True
+                messages.append(self.helpers.tr('tooltips.table.filename_invalid_chars'))
             
             # Validate path length
             if not Validator.validate_path_length(base_dir, new_name, platform=platform):
@@ -213,7 +217,9 @@ class RenameManager:
             # Skip if temp file creation failed
             return
 
-        self._open_file_in_editor(tmpfile)
+        if not self._open_file_in_editor(tmpfile):
+            self._cleanup_temp_file(tmpfile)
+            return
 
         self._process_edited_file(tmpfile, names)
 
@@ -257,28 +263,28 @@ class RenameManager:
                     f.write(n + "\n")
 
             return tmpfile
-        except Exception as e:
+        except (OSError, UnicodeError):
             # Show error if temp file creation fails
             QMessageBox.critical(self.main_window, self.helpers.tr('messages.error'),
                                 self.helpers.tr('messages.errors.temp_file_failed'))
             return None
 
-    def _open_file_in_editor(self, tmpfile: Path) -> None:
+    def _open_file_in_editor(self, tmpfile: Path) -> bool:
         """Open temporary file in external editor.
 
         **Parameters:**
             `tmpfile` (Path): Path to temporary file to open
 
         **Returns:**
-            `None`
+            `bool`: True if the system accepted the request to open the file
         """
-        try:
-            # Open file with default system editor
-            QDesktopServices.openUrl(QUrl.fromLocalFile(str(tmpfile)))
-        except Exception:
+        # Open file with default system editor
+        if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(tmpfile))):
             # Show error if opening editor fails
             QMessageBox.critical(self.main_window, self.helpers.tr('messages.error'),
                                 self.helpers.tr('messages.errors.open_editor_failed'))
+            return False
+        return True
 
     def _process_edited_file(self, tmpfile: Path, original_names: list[str]) -> None:
         """Process edited file and apply changes.
@@ -323,7 +329,7 @@ class RenameManager:
             with tmpfile.open('r', encoding=ENCODING) as f:
                 lines = f.readlines()
             return self._process_file_lines(lines)
-        except Exception:
+        except (OSError, UnicodeError):
             # Show error if reading fails
             QMessageBox.critical(self.main_window, self.helpers.tr('messages.error'),
                                 self.helpers.tr('messages.errors.read_failed'))
@@ -359,7 +365,7 @@ class RenameManager:
             mbox.setWindowTitle(self.helpers.tr('messages.error'))
             mbox.setText(self.helpers.tr('messages.errors.editor_count_mismatch'))
             reopen = mbox.addButton(self.helpers.tr('dialogs.buttons.open_again'), QMessageBox.ActionRole)
-            cancel = mbox.addButton(self.helpers.tr('dialogs.buttons.cancel'), QMessageBox.RejectRole)
+            mbox.addButton(self.helpers.tr('dialogs.buttons.cancel'), QMessageBox.RejectRole)
             mbox.exec()
 
             if mbox.clickedButton() == reopen:
@@ -398,9 +404,9 @@ class RenameManager:
         try:
             # Delete temp file if it exists
             tmpfile.unlink(missing_ok=True)
-        except Exception:
-            # Ignore cleanup errors
-            pass
+        except OSError:
+            # Report cleanup errors without interrupting the editor workflow
+            logger.warning('Could not remove temporary preview file %s', tmpfile, exc_info=True)
 
     def perform_rename(self) -> None:
         """Perform the actual file renaming operation.
@@ -443,13 +449,13 @@ class RenameManager:
             return
 
         # Check for conflicts
-        conflicts = Validator.check_conflicts(effective)
+        conflicts = Validator.check_conflicts(plan)
         if conflicts:
             self.show_conflicts(conflicts)
             return
 
         # Check for missing source files
-        missing = [str(src) for src, _ in effective if not src.exists()]
+        missing = [str(src) for src, _ in effective if not os.path.lexists(src)]
         if missing:
             QMessageBox.critical(
                 self.main_window,
@@ -459,33 +465,42 @@ class RenameManager:
             return
 
         # Perform the actual rename operation
-        errors = Renamer.perform_rename(effective)
+        result = Renamer.perform_rename(effective)
 
-        if errors:
-            # Show errors if rename failed
-            QMessageBox.critical(
-                self.main_window, self.helpers.tr('messages.error'),
-                self.helpers.tr('messages.errors.rename_failed') + '\n\n' + '\n\n'.join(errors)
-            )
-            return
-
-        # Update undo stack and UI state
-        self.main_window._undo_stack.append(effective)
+        # Record actual changes even if rollback could not restore every file
+        if result.moves:
+            self.main_window._undo_stack.append(result.moves)
+            self._apply_path_changes(result.moves)
+            self.helpers.reset_text_fields()
+            self.table_manager.update_preview_later()
         self.update_undo_state()
 
-        # Update table with new filenames
-        for r in range(self.main_window.table.rowCount()):
-            old_item = self.main_window.table.item(r, 0)
-            full = Path(old_item.data(Qt.UserRole))
-            new_name = self.main_window.table.item(r, 1).text()
-            new_full = full.with_name(new_name)
-            old_item.setText(new_full.name)
-            old_item.setToolTip(str(new_full))
-            old_item.setData(Qt.UserRole, str(new_full))
+        if result.missing or result.errors:
+            # Show execution errors after synchronizing table and undo history
+            QMessageBox.critical(
+                self.main_window, self.helpers.tr('messages.error'),
+                self.helpers.tr('messages.errors.rename_failed') + '\n\n'
+                + '\n\n'.join(result.missing + result.errors)
+            )
 
-        # Reset UI and update preview
-        self.helpers.reset_text_fields()
-        self.table_manager.update_preview_later()
+    def _apply_path_changes(self, moves: list[tuple[Path, Path]]) -> None:
+        """Update source cells from actual file locations after rename or undo.
+
+        **Parameters:**
+            `moves` (list[tuple[Path, Path]]): Original-current path pairs
+
+        **Returns:**
+            `None`
+        """
+        mapping = {str(src.absolute()): dst for src, dst in moves}
+        for row in range(self.main_window.table.rowCount()):
+            item = self.main_window.table.item(row, 0)
+            current = str(Path(item.data(Qt.UserRole)).absolute())
+            if current in mapping:
+                path = mapping[current]
+                item.setText(path.name)
+                item.setToolTip(str(path))
+                item.setData(Qt.UserRole, str(path))
 
     def show_conflicts(self, conflicts: list[str]) -> None:
         """Show conflicts dialog with detailed conflict information.
@@ -578,10 +593,9 @@ class RenameManager:
         platform = 'windows' if self.helpers.is_windows() else 'linux'
         
         # Validate filename characters for Windows
-        if platform == 'windows' and cfg.case.windows_names:
-            if not Validator.validate_filename(new_name, windows_safe=True):
-                self._show_invalid_chars_warning()
-                return False
+        if platform == 'windows' and not Validator.validate_filename(new_name, windows_safe=True):
+            self._show_invalid_chars_warning()
+            return False
         
         # Validate path length
         if not Validator.validate_path_length(base_dir, new_name, platform=platform):
@@ -635,54 +649,48 @@ class RenameManager:
         moves = self.main_window._undo_stack[-1]
 
         # Attempt to undo the rename operation
-        missing, errors = Renamer.undo_moves(moves)
+        result = Renamer.undo_moves(moves)
 
-        if missing:
+        # Retain only the changes that still need undoing
+        locations = {str(src.absolute()): dst for src, dst in result.moves}
+        remaining = []
+        for src, dst in moves:
+            current = locations.get(str(dst.absolute()), dst)
+            if str(src.absolute()) != str(current.absolute()):
+                remaining.append((src, current))
+        if remaining:
+            self.main_window._undo_stack[-1] = remaining
+        else:
+            self.main_window._undo_stack.pop()
+
+        self._apply_path_changes(result.moves)
+        self.update_undo_state()
+        if result.moves:
+            self.helpers.reset_text_fields()
+            self.table_manager.update_preview_later()
+
+        if result.missing:
             # Show error if source files are missing
             QMessageBox.critical(
                 self.main_window, self.helpers.tr('messages.error'),
-                self.helpers.tr('messages.errors.missing_sources_undo') + '\n\n' + '\n'.join(missing)
+                self.helpers.tr('messages.errors.missing_sources_undo') + '\n\n'
+                + '\n'.join(result.missing + result.errors)
             )
             return
 
-        if errors:
+        if result.errors:
             # Show error if undo failed
             QMessageBox.critical(
                 self.main_window, self.helpers.tr('messages.error'),
-                self.helpers.tr('messages.errors.undo_failed') + '\n\n' + '\n'.join(errors)
+                self.helpers.tr('messages.errors.undo_failed') + '\n\n' + '\n'.join(result.errors)
             )
             return
-
-        # Remove completed undo from stack
-        self.main_window._undo_stack.pop()
 
         # Show success message
         QMessageBox.information(
             self.main_window, self.helpers.tr('messages.info'),
             self.helpers.tr('messages.confirmation.undo_done')
         )
-
-        # Update table with reverted filenames
-        mapping = {str(dst): str(src) for (src, dst) in moves}
-        for row in range(self.main_window.table.rowCount()):
-            item = self.main_window.table.item(row, 0)
-            cur_path = str(Path(item.data(Qt.UserRole)))
-            if cur_path in mapping:
-                # Revert to original filename
-                old_full = Path(mapping[cur_path])
-                item.setData(Qt.UserRole, str(old_full))
-                item.setText(old_full.name)
-                item.setToolTip(str(old_full))
-            else:
-                # Keep current filename if not in mapping
-                p = Path(item.data(Qt.UserRole))
-                item.setText(p.name)
-                item.setToolTip(str(p))
-
-        # Reset UI and update state
-        self.helpers.reset_text_fields()
-        self.update_undo_state()
-        self.table_manager.update_preview_later()
 
     def invalidate_undo_with_prompt(self) -> bool:
         """Invalidate undo stack with user confirmation.

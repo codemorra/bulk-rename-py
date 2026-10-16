@@ -1,2 +1,3 @@
-# Test dependencies for Bulk Rename Py
+# Test and lint dependencies for Bulk Rename Py
 pytest>=7.0.0
+ruff>=0.17.1

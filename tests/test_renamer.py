@@ -1,8 +1,6 @@
 """Tests for the Renamer class (modules/core/renamer.py)."""
 
-from pathlib import Path
 
-import pytest
 
 from modules.core.renamer import Renamer
 from modules.core.types import (
@@ -50,8 +48,9 @@ class TestRenamer:
         moves = Renamer.plan_moves(paths, new_names)
         
         # Perform rename
-        errors = Renamer.perform_rename(moves)
-        assert len(errors) == 0
+        result = Renamer.perform_rename(moves)
+        assert not result.errors
+        assert not result.missing
         
         # Verify files were renamed
         assert (tmp_test_dir / "new1.txt").exists()
@@ -74,10 +73,10 @@ class TestRenamer:
         Renamer.perform_rename(moves)
         
         # Undo the rename
-        missing, errors = Renamer.undo_moves(moves)
+        result = Renamer.undo_moves(moves)
         
-        assert len(errors) == 0
-        assert len(missing) == 0
+        assert not result.errors
+        assert not result.missing
         
         # Verify original files are restored
         assert (tmp_test_dir / "original1.txt").exists()
@@ -85,7 +84,6 @@ class TestRenamer:
     
     def test_replace_functionality(self, tmp_test_dir):
         """Test complex replace functionality."""
-        from modules.core.types import ReplaceCfg
         
         # Create test files
         files = ["test123.txt", "abc456.txt"]
@@ -127,7 +125,6 @@ class TestRenamer:
     
     def test_replace_first_only(self, tmp_test_dir):
         """Test first-only replacement."""
-        from modules.core.types import ReplaceCfg
         
         # Create test file with multiple occurrences
         filepath = tmp_test_dir / "test123test456.txt"
@@ -203,9 +200,10 @@ class TestRenamer:
         # Generate names and execute
         preview_names = Renamer.preview_names(paths, cfg)
         moves = Renamer.plan_moves(paths, preview_names)
-        errors = Renamer.perform_rename(moves)
+        result = Renamer.perform_rename(moves)
         
-        assert len(errors) == 0
+        assert not result.errors
+        assert not result.missing
         
         # Verify that files were renamed with counters
         expected_files = ["doc_01.txt", "doc_02.txt", "doc_03.txt"]

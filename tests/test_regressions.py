@@ -1,6 +1,5 @@
 """Regression tests for confirmed rename and validation issues."""
 
-import os
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -15,8 +14,6 @@ from modules.gui.rename_manager import RenameManager
 class TestRenameSafety:
     """Test preservation of file contents during rename and undo."""
 
-    @pytest.mark.xfail(os.name != 'nt', strict=True, raises=AssertionError,
-                       reason="Existing destination files are overwritten on Linux")
     def test_existing_destination_preserves_contents(self, tmp_path):
         """Test that an occupied destination is rejected without data loss."""
         src = tmp_path / "source.txt"
@@ -24,14 +21,12 @@ class TestRenameSafety:
         src.write_text("source content", encoding="utf-8")
         dst.write_text("destination content", encoding="utf-8")
 
-        errors = Renamer.perform_rename([(src, dst)])
+        result = Renamer.perform_rename([(src, dst)])
 
         assert dst.read_text(encoding="utf-8") == "destination content"
         assert src.read_text(encoding="utf-8") == "source content"
-        assert errors
+        assert result.errors
 
-    @pytest.mark.xfail(strict=True, raises=AssertionError,
-                       reason="Sequential renames overwrite sources in a name swap")
     def test_name_swap_preserves_contents(self, tmp_path):
         """Test that swapping names preserves both files and supports undo."""
         first = tmp_path / "first.txt"
@@ -40,35 +35,34 @@ class TestRenameSafety:
         second.write_text("second content", encoding="utf-8")
         moves = [(first, second), (second, first)]
 
-        errors = Renamer.perform_rename(moves)
+        result = Renamer.perform_rename(moves)
 
-        assert not errors
+        assert not result.errors
+        assert not result.missing
         assert first.read_text(encoding="utf-8") == "second content"
         assert second.read_text(encoding="utf-8") == "first content"
 
-        missing, errors = Renamer.undo_moves(moves)
+        result = Renamer.undo_moves(moves)
 
-        assert not missing
-        assert not errors
+        assert not result.errors
+        assert not result.missing
         assert first.read_text(encoding="utf-8") == "first content"
         assert second.read_text(encoding="utf-8") == "second content"
 
-    @pytest.mark.xfail(os.name != 'nt', strict=True, raises=AssertionError,
-                       reason="Undo overwrites a newly occupied original path on Linux")
     def test_undo_preserves_new_file_at_original_path(self, tmp_path):
         """Test that undo preserves files created after the rename."""
         src = tmp_path / "source.txt"
         dst = tmp_path / "destination.txt"
         src.write_text("original content", encoding="utf-8")
-        assert not Renamer.perform_rename([(src, dst)])
+        assert not Renamer.perform_rename([(src, dst)]).errors
         src.write_text("new content", encoding="utf-8")
 
-        missing, errors = Renamer.undo_moves([(src, dst)])
+        result = Renamer.undo_moves([(src, dst)])
 
         assert src.read_text(encoding="utf-8") == "new content"
         assert dst.read_text(encoding="utf-8") == "original content"
-        assert not missing
-        assert errors
+        assert not result.missing
+        assert result.errors
 
 
 class TestNameGeneration:
@@ -122,8 +116,6 @@ class TestFilenameValidation:
 class TestGUIValidation:
     """Test preflight validation without opening application dialogs."""
 
-    @pytest.mark.xfail(strict=True, raises=NameError,
-                       reason="Windows preflight references an undefined configuration")
     def test_windows_preflight_valid_name(self, tmp_path):
         """Test that Windows preflight accepts a valid short filename."""
         manager = RenameManager.__new__(RenameManager)

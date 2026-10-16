@@ -12,7 +12,6 @@ from modules.core.types import (
     DateTimeCfg,
     MaskCfg,
     RenameCfg,
-    ReplaceCfg,
 )
 from modules.core.validation import Validator
 

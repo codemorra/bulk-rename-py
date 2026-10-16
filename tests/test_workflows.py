@@ -1,6 +1,5 @@
 """Integration tests for complete rename workflows."""
 
-from pathlib import Path
 
 import pytest
 
@@ -55,8 +54,9 @@ class TestIntegration:
         assert len(conflicts) == 0
         
         # Execute rename
-        errors = Renamer.perform_rename(moves)
-        assert len(errors) == 0
+        result = Renamer.perform_rename(moves)
+        assert not result.errors
+        assert not result.missing
         
         # Verify files were renamed
         expected_files = ["document_01.txt", "document_02.txt", "document_03.txt"]
@@ -64,9 +64,9 @@ class TestIntegration:
             assert (tmp_test_dir / expected_file).exists()
         
         # Undo the rename
-        missing, undo_errors = Renamer.undo_moves(moves)
-        assert len(undo_errors) == 0
-        assert len(missing) == 0
+        result = Renamer.undo_moves(moves)
+        assert not result.errors
+        assert not result.missing
         
         # Verify original files are restored
         for original_file in sample_files:
@@ -106,9 +106,10 @@ class TestIntegration:
         
         # Execute rename
         moves = Renamer.plan_moves([filepath], preview_names)
-        errors = Renamer.perform_rename(moves)
+        result = Renamer.perform_rename(moves)
         
-        assert len(errors) == 0
+        assert not result.errors
+        assert not result.missing
         
         # Verify sanitized file exists
         sanitized_path = tmp_test_dir / preview_names[0]
@@ -149,9 +150,10 @@ class TestIntegration:
         
         # Execute rename
         moves = Renamer.plan_moves(paths, preview_names)
-        errors = Renamer.perform_rename(moves)
+        result = Renamer.perform_rename(moves)
         
-        assert len(errors) == 0
+        assert not result.errors
+        assert not result.missing
         
         # Verify all files were renamed
         for i, expected_name in enumerate(preview_names):
@@ -194,9 +196,10 @@ class TestIntegration:
         
         # Execute rename
         moves = Renamer.plan_moves([filepath], preview_names)
-        errors = Renamer.perform_rename(moves)
+        result = Renamer.perform_rename(moves)
         
-        assert len(errors) == 0
+        assert not result.errors
+        assert not result.missing
         
         # Verify renamed file exists
         renamed_path = tmp_test_dir / preview_name

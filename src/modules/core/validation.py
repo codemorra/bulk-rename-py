@@ -1,20 +1,11 @@
-# -*- coding: utf-8 -*-
-
-# Bulk Rename Py
-# © 2026–present Codemorra (Christopher Kranz)
-# Licensed under the MIT License (see LICENSE file)
-
 """Filename validation and sanitization.
 
 Provides platform-specific validation and sanitization functions
 to ensure filenames comply with operating system requirements.
 """
 
-import re
 import os
 from pathlib import Path
-from typing import Tuple
-
 
 # Constants
 ILLEGAL_WIN_CHARS = set("<>:'/\\|?*")
@@ -125,9 +116,7 @@ class Validator:
             if platform == 'windows':
                 if len(str(full_path)) > 260:
                     return False
-                if len(name) > 255:
-                    return False
-                return True
+                return len(name) <= 255
 
             # Linux path length validation (byte count with UTF-8 encoding)
             elif platform == 'linux':
@@ -137,9 +126,7 @@ class Validator:
 
                     if name_bytes > 255:
                         return False
-                    if path_bytes > 4096:
-                        return False
-                    return True
+                    return path_bytes <= 4096
                 except UnicodeEncodeError:
                     return False
 
@@ -149,29 +136,55 @@ class Validator:
             return False
 
     @staticmethod
-    def check_conflicts(moves: List[Tuple[Path, Path]]) -> List[str]:
+    def check_conflicts(moves: list[tuple[Path, Path]]) -> list[str]:
         """Check for naming conflicts in planned rename operations.
 
-        Identifies cases where multiple source files would be renamed to
-        the same destination filename, which would cause data loss.
+        Identifies duplicate sources, duplicate destinations, and occupied
+        destinations that are not vacated by the planned operations.
 
         **Parameters:**
-            `moves` (List[Tuple[Path, Path]]): List of planned (source, destination) pairs
+            `moves` (list[tuple[Path, Path]]): List of planned (source, destination) pairs
 
         **Returns:**
-            `List[str]`: List of conflict descriptions (empty if no conflicts)
+            `list[str]`: List of conflict descriptions (empty if no conflicts)
         """
         conflicts = []
         seen = {}
+        sources = set()
+        vacated = set()
 
         for src, dst in moves:
-            dst_str = str(dst)
-            if dst_str in seen:
-                conflicts.append(f"Conflict: {dst_str} (from {seen[dst_str]}) and {src}")
+            src_key = Validator.path_key(src)
+            if src_key in sources:
+                conflicts.append(f"Conflict: source included more than once: {src}")
+            sources.add(src_key)
+            if str(src) != str(dst):
+                vacated.add(src_key)
+
+        for src, dst in moves:
+            dst_key = Validator.path_key(dst)
+            if dst_key in seen:
+                conflicts.append(f"Conflict: {dst} (from {seen[dst_key]}) and {src}")
             else:
-                seen[dst_str] = src
+                seen[dst_key] = src
+
+            if (str(src) != str(dst) and os.path.lexists(dst)
+                    and dst_key not in vacated):
+                conflicts.append(f"Conflict: destination already exists: {dst}")
 
         return conflicts
+
+    @staticmethod
+    def path_key(path: Path) -> str:
+        """Normalize a path for conflict detection without following the final symlink.
+
+        **Parameters:**
+            `path` (Path): Source or destination path
+
+        **Returns:**
+            `str`: Absolute path with platform-specific case normalization
+        """
+        return os.path.normcase(str(path.parent.resolve() / path.name))
 
 
 ################################################
