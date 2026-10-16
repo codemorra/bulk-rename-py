@@ -3,6 +3,3 @@ __pycache__/
 .idea/
 .pytest_cache/
 .ruff_cache/
-build/
-dist/
-src/licenses/
