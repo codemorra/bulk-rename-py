@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-
-# Bulk Rename Py
-# © 2026–present Codemorra (Christopher Kranz)
-# Licensed under the MIT License (see LICENSE file)
-
 """Table manager module for Bulk Rename Py.
 
 Handles table operations including drag-and-drop, resizing, preview updates,
@@ -11,10 +5,12 @@ and table cell management for the file renaming interface.
 """
 
 from __future__ import annotations
+
 from pathlib import Path
-from PySide6.QtCore import QEvent, Qt
+
+from PySide6.QtCore import QEvent, QSignalBlocker, Qt
 from PySide6.QtGui import QBrush, QColor
-from PySide6.QtWidgets import QMessageBox, QTableWidgetItem
+from PySide6.QtWidgets import QMenu, QMessageBox, QTableWidgetItem
 
 # Import functions from helpers
 from .gui_helpers import GUIHelpers
@@ -94,6 +90,16 @@ class TableManager:
         # Start timer for delayed preview update
         self.main_window._update_timer.start(PREVIEW_DELAY_MS)
 
+    def flush_preview(self) -> None:
+        """Apply a pending preview update before using the displayed names.
+
+        **Returns:**
+            `None`
+        """
+        if self.main_window._update_timer.isActive():
+            self.main_window._update_timer.stop()
+            self.main_window.rename_manager.update_preview_now()
+
     def eventFilter(self, obj, ev):
         """Event filter for table events.
 
@@ -110,7 +116,7 @@ class TableManager:
 
         # Skip events for non-table objects
         if obj not in (self.main_window.table, self.main_window.table.viewport()):
-            return super(type(self.main_window), self.main_window).eventFilter(obj, ev)
+            return False
 
         # Handle drag enter/move events
         if ev.type() in (QEvent.DragEnter, QEvent.DragMove):
@@ -121,7 +127,7 @@ class TableManager:
             return self._handle_drop_event(ev)
 
         # Pass unhandled events to parent
-        return super(type(self.main_window), self.main_window).eventFilter(obj, ev)
+        return False
 
     def _handle_resize_event(self, ev) -> bool:
         """Handle table resize events.
@@ -187,19 +193,18 @@ class TableManager:
             # Show warning for multiple directories
             QMessageBox.warning(
                 self.main_window,
-                self.main_window._tr('messages.info'),
-                self.main_window._tr('messages.information.multiple_directories')
+                self.helpers.tr('messages.info'),
+                self.helpers.tr('messages.information.multiple_directories')
                 )
             ev.ignore()
             return True
 
-        # Accept the drop action
-        ev.setDropAction(Qt.CopyAction)
-        ev.accept()
-        from .rename_manager import RenameManager
-        # Import paths using rename manager
-        rename_manager = RenameManager(self.main_window)
-        rename_manager.import_from_paths(paths)
+        # Use the existing manager and accept only completed imports
+        if self.main_window.rename_manager.import_from_paths(paths):
+            ev.setDropAction(Qt.CopyAction)
+            ev.accept()
+        else:
+            ev.ignore()
         return True
 
     def init_equal_columns(self) -> None:
@@ -232,10 +237,9 @@ class TableManager:
             `None`
         """
         # Temporarily block signals to prevent unnecessary updates
-        self.main_window.table.blockSignals(True)
-        self.main_window.table.setColumnWidth(0, left_width)
-        self.main_window.table.setColumnWidth(1, right_width)
-        self.main_window.table.blockSignals(False)
+        with QSignalBlocker(self.main_window.table.horizontalHeader()):
+            self.main_window.table.setColumnWidth(0, left_width)
+            self.main_window.table.setColumnWidth(1, right_width)
 
     def on_header_resized(self, logical_index: int, _old: int, new_width: int) -> None:
         """Handle column header resize events.
@@ -308,7 +312,7 @@ class TableManager:
 
         # Calculate new widths maintaining ratio
         left_ratio = left_width / total_width
-        new_left_width = int(round(viewport_width * left_ratio))
+        new_left_width = round(viewport_width * left_ratio)
         new_left_width = max(self.main_window._min_left,
                              min(new_left_width, viewport_width - self.main_window._min_right))
         new_right_width = viewport_width - new_left_width
@@ -331,19 +335,6 @@ class TableManager:
         **Returns:**
             `None`
         """
-        try:
-            # Add new row to table
-            row = self.main_window.table.rowCount()
-            self.main_window.table.insertRow(row)
-        except Exception as e:
-            # Show warning if table addition fails
-            QMessageBox.warning(
-                self.main_window,
-                self.helpers.tr('messages.warning'),
-                self.helpers.tr('messages.errors.table_add_failed').format(str(p), str(e))
-            )
-            return
-
         # Create and configure current name item
         current_name = QTableWidgetItem(p.name)
         current_name.setToolTip(str(p))
@@ -353,26 +344,27 @@ class TableManager:
         new_name = QTableWidgetItem('')
 
         # Add items to table
+        row = self.main_window.table.rowCount()
+        self.main_window.table.insertRow(row)
         self.main_window.table.setItem(row, 0, current_name)
         self.main_window.table.setItem(row, 1, new_name)
 
-    def clear_table(self) -> None:
+    def clear_table(self) -> bool:
         """Clear all entries from table.
 
         **Returns:**
-            `None`
+            `bool`: True if cleared, False if undo invalidation was cancelled
         """
-        # Check if undo stack needs to be cleared
-        if self.main_window.table.rowCount() > 0:
-            if self.main_window._undo_stack:
-                if not self.helpers.question_box('messages.confirm', 'messages.questions.invalidate_undo'):
-                    return
-                self.main_window._undo_stack.clear()
+        # Stop before changing the list if undo invalidation was cancelled
+        if not self.main_window.rename_manager.invalidate_undo_with_prompt():
+            return False
 
         # Clear table and reset UI
         self.main_window.table.setRowCount(0)
         self.main_window.table.clearSelection()
         self.helpers.reset_text_fields()
+        self.main_window._update_timer.stop()
+        return True
 
     def table_context_menu(self, pos) -> None:
         """Show context menu for table.
@@ -395,13 +387,13 @@ class TableManager:
             self.main_window.table.selectRow(index.row())
 
         # Create and show context menu
-        menu = QMenu(self.main_window)
-        act_remove = menu.addAction(self.main_window._tr('context_menu.remove'))
+        menu = QMenu(self.main_window.table)
+        act_remove = menu.addAction(self.helpers.tr('context_menu.remove'))
 
         chosen = menu.exec(self.main_window.table.viewport().mapToGlobal(pos))
         if chosen == act_remove:
             # Remove selected rows if remove action was chosen
-            self._remove_selected_rows()
+            self.remove_selected_rows()
 
     def remove_selected_rows(self) -> None:
         """Remove selected rows from table.
@@ -415,10 +407,8 @@ class TableManager:
             return
 
         # Check if undo stack needs to be cleared
-        if self.main_window._undo_stack:
-            if not self.helpers.question_box('messages.confirm', 'messages.questions.invalidate_undo'):
-                return
-            self.main_window._undo_stack.clear()
+        if not self.main_window.rename_manager.invalidate_undo_with_prompt():
+            return
 
         # Remove rows in reverse order to maintain correct indices
         for idx in sorted(sel_row, key=lambda i: i.row(), reverse=True):
@@ -426,5 +416,6 @@ class TableManager:
 
         if self.main_window.table.rowCount() == 0:
             self.helpers.reset_text_fields()
-
-        self.update_preview_later()
+            self.main_window._update_timer.stop()
+        else:
+            self.update_preview_later()

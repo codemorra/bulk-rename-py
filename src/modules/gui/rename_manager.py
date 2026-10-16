@@ -32,10 +32,8 @@ from .gui_helpers import GUIHelpers
 from .table_manager import TableManager
 
 # Constants
-DEFAULT_EDITOR = 'notepad'
 TEMP_FILE_SUFFIX = '.txt'
-ENCODING = 'utf-8'
-COMMENT_CHAR = '#'
+ENCODING = 'utf-8-sig'
 UNCHANGED_CASE = 'unchanged'
 
 logger = logging.getLogger(__name__)
@@ -221,6 +219,7 @@ class RenameManager:
         **Returns:**
             `None`
         """
+        self.table_manager.flush_preview()
         names = self._collect_preview_names()
         if not names:
             # Skip if no names collected
@@ -253,32 +252,35 @@ class RenameManager:
     def _create_temp_file(self, names: list[str]) -> Path | None:
         """Create temporary file with preview names.
 
+        Uses a unique UTF-8 file with an encoding mark so leading marks in
+        filenames remain distinguishable when the edited file is read back.
+
         **Parameters:**
             `names` (list[str]): List of names to write to temp file
 
         **Returns:**
             `Path | None`: Path to created temp file or None if failed
         """
+        if any('\n' in name or '\r' in name for name in names):
+            QMessageBox.warning(
+                self.main_window, self.helpers.tr('messages.warning'),
+                self.helpers.tr('messages.errors.editor_line_breaks')
+            )
+            return None
+
+        tmpfile = None
         try:
-            # Determine temp directory based on platform
-            if self.helpers.is_windows():
-                tmpdir = Path(tempfile.gettempdir())
-            else:
-                tmpdir = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
-
-            tmpfile = tmpdir / f"bulkrename_preview_{os.getpid()}.txt"
-
-            # Create parent directories if needed
-            tmpfile.parent.mkdir(parents=True, exist_ok=True)
-
-            # Write names to temp file
-            with tmpfile.open("w", encoding=ENCODING, newline="\n") as f:
-                for n in names:
-                    f.write(n + "\n")
-
+            # Create an exclusive file and close its handle before launching the editor
+            with tempfile.NamedTemporaryFile(
+                    mode='w', encoding=ENCODING, newline='\n', delete=False,
+                    prefix='bulkrename_preview_', suffix=TEMP_FILE_SUFFIX) as stream:
+                tmpfile = Path(stream.name)
+                for name in names:
+                    stream.write(name + '\n')
             return tmpfile
         except (OSError, UnicodeError):
-            # Show error if temp file creation fails
+            if tmpfile is not None:
+                self._cleanup_temp_file(tmpfile)
             QMessageBox.critical(self.main_window, self.helpers.tr('messages.error'),
                                 self.helpers.tr('messages.errors.temp_file_failed'))
             return None
@@ -310,24 +312,19 @@ class RenameManager:
         **Returns:**
             `None`
         """
-        while True:
-            # Ask user if they want to load edited names
-            if not self.helpers.question_box('messages.confirm', 'messages.questions.load_from_editor'):
-                self._cleanup_temp_file(tmpfile)
+        try:
+            while self.helpers.question_box('messages.confirm', 'messages.questions.load_from_editor'):
+                lines = self._read_edited_lines(tmpfile)
+                if lines is None:
+                    return
+                if len(lines) != len(original_names):
+                    if self._retry_editor(tmpfile):
+                        continue
+                    return
+                self._apply_edited_names(lines)
                 return
-
-            lines = self._read_edited_lines(tmpfile)
-            if lines is None:
-                # Skip if reading failed
-                return
-
-            if not self._validate_line_count(lines, original_names, tmpfile):
-                # Retry if line count validation fails
-                continue
-
-            self._apply_edited_names(lines)
+        finally:
             self._cleanup_temp_file(tmpfile)
-            return
 
     def _read_edited_lines(self, tmpfile: Path) -> list[str] | None:
         """Read edited lines from temporary file.
@@ -361,37 +358,23 @@ class RenameManager:
         # Strip line endings from each line
         return [ln.rstrip('\r\n') for ln in lines]
 
-    def _validate_line_count(self, lines: list[str], original_names: list[str], tmpfile: Path) -> bool:
-        """Validate that line count matches original names.
+    def _retry_editor(self, tmpfile: Path) -> bool:
+        """Offer to reopen the editor after a line-count mismatch.
 
         **Parameters:**
-            `lines` (list[str]): List of edited lines
-            `original_names` (list[str]): List of original names
-            `tmpfile` (Path): Path to temporary file
+            `tmpfile` (Path): Preview file to reopen
 
         **Returns:**
-            `bool`: True if validation passes, False otherwise
+            `bool`: True if reopening succeeded, False if cancelled or opening failed
         """
-        if len(lines) != len(original_names):
-            # Show warning if line count mismatch
-            mbox = QMessageBox(self.main_window)
-            mbox.setIcon(QMessageBox.Warning)
-            mbox.setWindowTitle(self.helpers.tr('messages.error'))
-            mbox.setText(self.helpers.tr('messages.errors.editor_count_mismatch'))
-            reopen = mbox.addButton(self.helpers.tr('dialogs.buttons.open_again'), QMessageBox.ActionRole)
-            mbox.addButton(self.helpers.tr('dialogs.buttons.cancel'), QMessageBox.RejectRole)
-            mbox.exec()
-
-            if mbox.clickedButton() == reopen:
-                # Reopen editor if user wants to fix
-                self._open_file_in_editor(tmpfile)
-                return False
-            else:
-                # Clean up and cancel if user cancels
-                self._cleanup_temp_file(tmpfile)
-                return False
-
-        return True
+        mbox = QMessageBox(self.main_window)
+        mbox.setIcon(QMessageBox.Warning)
+        mbox.setWindowTitle(self.helpers.tr('messages.error'))
+        mbox.setText(self.helpers.tr('messages.errors.editor_count_mismatch'))
+        reopen = mbox.addButton(self.helpers.tr('dialogs.buttons.open_again'), QMessageBox.ActionRole)
+        mbox.addButton(self.helpers.tr('dialogs.buttons.cancel'), QMessageBox.RejectRole)
+        mbox.exec()
+        return mbox.clickedButton() == reopen and self._open_file_in_editor(tmpfile)
 
     def _apply_edited_names(self, lines: list[str]) -> None:
         """Apply edited names to preview table.
@@ -402,6 +385,8 @@ class RenameManager:
         **Returns:**
             `None`
         """
+        # Keep a delayed generated preview from replacing explicitly edited names
+        self.main_window._update_timer.stop()
         # Apply the same validation and styling as generated preview names
         self._set_preview_names(lines, self.collect_cfg().case.windows_names)
 
@@ -427,6 +412,7 @@ class RenameManager:
         **Returns:**
             `None`
         """
+        self.table_manager.flush_preview()
         rows = self.main_window.table.rowCount()
 
         # Check for potential issues before renaming
@@ -741,7 +727,7 @@ class RenameManager:
 
             # Clear undo stack and update UI
             self.main_window._undo_stack.clear()
-            self._update_undo_state()
+        self.update_undo_state()
         return True
 
     def update_undo_state(self) -> None:
@@ -817,38 +803,52 @@ class RenameManager:
         if folder:
             self.import_from_paths([folder])
 
-    def import_from_paths(self, paths: list[str]) -> None:
-        """Import files from given paths.
+    def import_from_paths(self, paths: list[str]) -> bool:
+        """Replace the current list with files collected from the given paths.
 
         **Parameters:**
             `paths` (list[str]): List of file/folder paths to import
 
         **Returns:**
-            `None`
+            `bool`: True if imported, False if cancelled, empty, or collection failed
         """
-        # Clear existing table
-        self.table_manager.clear_table()
-
-        # Configure import options
         opts = ImportOptions(
             allow_files=True,
             allow_dirs=True,
             include_hidden=self.main_window.act_hidden.isChecked()
         )
 
-        # Collect and filter files
-        items = Importer.collect(paths, opts)
-        files = [it.path for it in items if not it.is_dir]
+        # Collect before clearing so read failures preserve the existing list and history
+        try:
+            items = Importer.collect(paths, opts)
+            files = [item.path for item in items if not item.is_dir]
+            files.sort(key=lambda p: (
+                [int(t) if t.isdecimal() else t.lower() for t in re.split(r'(\d+)', p.name)],
+                str(p)
+            ))
+        except (OSError, ValueError) as e:
+            QMessageBox.critical(
+                self.main_window, self.helpers.tr('messages.error'),
+                self.helpers.tr('messages.errors.import_failed') + '\n\n' + str(e)
+            )
+            return False
+        if not files:
+            QMessageBox.information(
+                self.main_window, self.helpers.tr('messages.info'),
+                self.helpers.tr('messages.information.no_importable_files')
+            )
+            return False
+        if not self.table_manager.clear_table():
+            return False
 
-        # Sort files naturally (with number support)
-        files.sort(key=lambda p: [int(t) if t.isdigit() else t.lower()
-                                    for t in re.split(r'(\d+)', p.name)])
-
-        # Add files to table efficiently
+        # Restore the previous repaint state even if adding a row fails
+        updates_enabled = self.main_window.table.updatesEnabled()
         self.main_window.table.setUpdatesEnabled(False)
-        for f in files:
-            self.table_manager.table_add_entry(f)
-        self.main_window.table.setUpdatesEnabled(True)
+        try:
+            for path in files:
+                self.table_manager.table_add_entry(path)
+        finally:
+            self.main_window.table.setUpdatesEnabled(updates_enabled)
 
-        # Update preview after import
         self.table_manager.update_preview_later()
+        return True

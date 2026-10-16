@@ -14,6 +14,9 @@
 - Consistent date/time tokens and one modification-time read per file
 - Duplicate numbering after replacement, sanitization, and extension changes
 - Shared validation of generated and externally edited names
+- Context menu, import cancellation, drag-and-drop, and undo button state
+- Pending preview updates before rename and editor export
+- Editor retry, cancellation, encoding, and temporary file cleanup
 - Edge cases handled
 
 ## Requirements
@@ -48,9 +51,14 @@ Windows preflight test simulates the platform check without opening GUI dialogs;
 it does not replace testing the application on Windows.
 
 `test_file_operations.py` injects failures during execution and rollback and
-checks the reported recovery paths. `test_rename_manager.py` uses real Qt table
-cells with the offscreen platform plugin and intercepts confirmation dialogs;
-it does not open the main window or read user settings.
+checks the reported recovery paths. GUI tests use real Qt widgets with the
+offscreen platform plugin and intercept dialogs and editor launches.
+
+`test_rename_manager.py` covers file locations and undo history after failures.
+`test_gui_workflows.py` covers table actions, imports, and the editor workflow.
+It also creates the complete main window with settings redirected to a temporary
+directory and exercises import, rename, undo, row removal, and clearing. These
+tests do not read or write user settings or launch an external editor.
 
 `test_name_generation.py` checks combined naming options, regex errors, timestamp
 consistency across midnight, and reuse of file metadata and prepared search

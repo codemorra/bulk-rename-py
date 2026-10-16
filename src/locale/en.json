@@ -122,6 +122,7 @@
       "undo_done": "The previous renaming has been successfully undone."
     },
     "information": {
+      "no_importable_files": "No files matching the import settings were found. The current list has been kept.",
       "multiple_directories": "Only one directory can be imported at a time.",
       "no_files": "No files available for processing.",
       "no_files_for_rename": "No files were loaded that can be renamed.",
@@ -129,6 +130,11 @@
       "no_undo": "No undo operation available."
     },
     "errors": {
+      "import_failed": "The files could not be imported. The current list has been kept:",
+      "temp_file_failed": "The temporary preview file could not be created.",
+      "open_editor_failed": "The system could not open the preview file in an editor.",
+      "editor_line_breaks": "Names containing line breaks cannot be edited as a text list.",
+      "window_restart_failed": "The window could not be restarted:\n\n{0}",
       "preview_failed": "The preview could not be generated. Check the naming settings:",
       "read_failed": "The modified file could not be read.",
       "editor_count_mismatch": "The number of lines in the file does not match the number of loaded files.",

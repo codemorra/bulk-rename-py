@@ -1,65 +1,14 @@
 """Integration tests for table and undo state after rename failures."""
 
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import (
-    QApplication,
-    QMessageBox,
-    QPushButton,
-    QTableWidget,
-    QTableWidgetItem,
-)
 
 from modules.core.file_operations import MoveExecutor
 from modules.core.types import ReplaceCfg
 from modules.gui.rename_manager import RenameManager
-
-
-@pytest.fixture(scope='module')
-def qt_application():
-    """Create a Qt application without opening windows or using real settings."""
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setenv('QT_QPA_PLATFORM', 'offscreen')
-        application = QApplication.instance() or QApplication([])
-        yield application
-
-
-@pytest.fixture
-def manager_factory(qt_application, monkeypatch, basic_rename_config):
-    """Create managers with real table cells and intercepted confirmation dialogs."""
-    messages = []
-    monkeypatch.setattr(QMessageBox, 'warning', lambda *args: messages.append(args[2]))
-    monkeypatch.setattr(QMessageBox, 'critical', lambda *args: messages.append(args[2]))
-    monkeypatch.setattr(QMessageBox, 'information', lambda *args: messages.append(args[2]))
-
-    def create(moves):
-        window = SimpleNamespace(
-            table=QTableWidget(len(moves), 2), btn_undo=QPushButton(), _undo_stack=[]
-        )
-        for row, (src, dst) in enumerate(moves):
-            item = QTableWidgetItem(src.name)
-            item.setData(Qt.UserRole, str(src))
-            window.table.setItem(row, 0, item)
-            window.table.setItem(row, 1, QTableWidgetItem(dst.name))
-
-        manager = RenameManager(window)
-        manager.helpers = SimpleNamespace(
-            tr=lambda key: key, question_box=lambda *args: True,
-            reset_text_fields=lambda: None, is_windows=lambda: False
-        )
-        manager.collect_cfg = lambda: basic_rename_config
-        manager.table_manager.update_preview_later = lambda: None
-        # Isolate execution state from the filename validation covered separately
-        manager.precheck_rename_block_on_overlength = lambda: True
-        manager.show_conflicts = lambda conflicts: messages.extend(conflicts)
-        manager.update_undo_state()
-        return manager, messages
-
-    return create
 
 
 def table_paths(manager):

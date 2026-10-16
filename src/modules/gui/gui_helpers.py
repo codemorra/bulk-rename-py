@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-
-# Bulk Rename Py
-# © 2026–present Codemorra (Christopher Kranz)
-# Licensed under the MIT License (see LICENSE file)
-
 """GUI helpers module for Bulk Rename Py.
 
 Provides utility functions and helper methods for GUI operations,
@@ -12,16 +6,14 @@ and common dialog operations.
 """
 
 from __future__ import annotations
-import os
-import webbrowser
-from pathlib import Path
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QBrush, QColor, QFontDatabase, QFont
-from PySide6.QtWidgets import (
-    QMessageBox, QStyle
-)
-from ..settings import set_language_in_config
 
+import os
+
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QBrush, QColor
+from PySide6.QtWidgets import QMainWindow, QMessageBox
+
+from ..settings import set_language_in_config
 
 # Constants
 MIN_WINDOW_WIDTH = 1
@@ -64,7 +56,7 @@ class GUIHelpers:
         if self.main_window.width() < self.main_window.MIN_WIDTH:
             self.main_window.resize(self.main_window.MIN_WIDTH, max(self.main_window.height(), self.main_window.minimumSizeHint().height()))
 
-        super(MainWindow, self.main_window).resizeEvent(e)
+        QMainWindow.resizeEvent(self.main_window, e)
 
     def tr(self, key: str) -> str:
         """Translate text using application translator.
@@ -104,12 +96,12 @@ class GUIHelpers:
             self.main_window._next_window = MainWindow()
             self.main_window._next_window.show()
             self.main_window.close()
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError) as e:
             # Show error message if restart fails
             QMessageBox.critical(
                 self.main_window,
-                self.helpers.tr('messages.error'),
-                self.helpers.tr('messages.errors.window_restart_failed').format(str(e))
+                self.tr('messages.error'),
+                self.tr('messages.errors.window_restart_failed').format(str(e))
             )
 
     def insert_token(self, edit, token: str) -> None:
@@ -146,19 +138,11 @@ class GUIHelpers:
         **Returns:**
             `None`
         """
-        try:
-            # Search for matching data value in combo box
-            for i in range(combo.count()):
-                if combo.itemData(i) == value:
-                    combo.setCurrentIndex(i)
-                    return
-        except Exception as e:
-            # Show warning if operation fails
-            QMessageBox.warning(
-                self.main_window,
-                self.helpers.tr('messages.warning'),
-                self.helpers.tr('messages.errors.combo_operation_failed').format(str(e))
-            )
+        # Search for matching data value in combo box
+        for i in range(combo.count()):
+            if combo.itemData(i) == value:
+                combo.setCurrentIndex(i)
+                return
 
     def question_box(self, title_key: str, text_key: str) -> bool:
         """Show yes/no question dialog.
@@ -180,7 +164,7 @@ class GUIHelpers:
         box.setText(text)
 
         yes_btn = box.addButton(self.tr('dialogs.buttons.yes'), QMessageBox.YesRole)
-        no_btn = box.addButton(self.tr('dialogs.buttons.no'), QMessageBox.NoRole)
+        box.addButton(self.tr('dialogs.buttons.no'), QMessageBox.NoRole)
 
         box.setDefaultButton(yes_btn)
         box.exec()
