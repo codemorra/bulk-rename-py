@@ -122,6 +122,7 @@
       "undo_done": "Die vorherige Umbenennung wurde erfolgreich rückgängig gemacht."
     },
     "information": {
+      "no_importable_files": "Es wurden keine Dateien gefunden, die den Importeinstellungen entsprechen. Die aktuelle Liste wurde beibehalten.",
       "multiple_directories": "Es kann immer nur ein Verzeichnis importiert werden.",
       "no_files": "Es sind keine Dateien zum Bearbeiten vorhanden.",
       "no_files_for_rename": "Es wurden keine Dateien geladen, die umbenannt werden können.",
@@ -129,6 +130,11 @@
       "no_undo": "Es ist kein Undo-Vorgang verfügbar."
     },
     "errors": {
+      "import_failed": "Die Dateien konnten nicht importiert werden. Die aktuelle Liste wurde beibehalten:",
+      "temp_file_failed": "Die temporäre Vorschaudatei konnte nicht erstellt werden.",
+      "open_editor_failed": "Das System konnte die Vorschaudatei nicht in einem Editor öffnen.",
+      "editor_line_breaks": "Namen mit Zeilenumbrüchen können nicht als Textliste bearbeitet werden.",
+      "window_restart_failed": "Das Fenster konnte nicht neu geöffnet werden:\n\n{0}",
       "preview_failed": "Die Vorschau konnte nicht erstellt werden. Bitte die Namenseinstellungen prüfen:",
       "read_failed": "Die geänderte Datei konnte nicht gelesen werden.",
       "editor_count_mismatch": "Die Anzahl der Zeilen in der Datei stimmt nicht mit der Anzahl der geladenen Dateien überein.",
