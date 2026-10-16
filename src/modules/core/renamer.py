@@ -4,8 +4,9 @@ Provides functionality for generating preview names, planning rename operations,
 checking for conflicts, and executing file renaming.
 """
 
+import os
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
 
@@ -39,78 +40,67 @@ class Renamer:
         **Returns:**
             `list[str]`: Generated preview names
         """
+        compiled = Renamer.validate_replace(cfg.repl)
+        if not paths:
+            return []
+
+        # Resolve time once per preview and modification time once per file
+        now = datetime.now()
+        timestamps = [TokenProcessor.get_datetime(p, cfg.dt.date_type, now) for p in paths]
+        formatted = [(timestamp, Renamer._format_date(cfg.dt, timestamp),
+                      Renamer._format_time(cfg.dt, timestamp)) for timestamp in timestamps]
+
+        def generate(index: int, counter: str) -> str:
+            timestamp, date_str, time_str = formatted[index]
+            return Renamer._generate_single_name(
+                paths[index], cfg, counter, date_str, time_str, timestamp, compiled
+            )
+
+        if not cfg.counter.dupes_only:
+            return [generate(i, f"{cfg.counter.start + i * cfg.counter.step:0{cfg.counter.digits}d}")
+                    for i in range(len(paths))]
+
+        # Group fully transformed names by destination directory
+        base_names = [generate(i, '') for i in range(len(paths))]
+        parents = {parent: os.path.normcase(str(parent.resolve()))
+                   for parent in {p.parent for p in paths}}
+        keys = [(parents[p.parent], os.path.normcase(name)) for p, name in zip(paths, base_names)]
+        counts = Counter(keys)
+        counters = defaultdict(int)
         results = []
-
-        # Handle duplicate-only counter mode
-        if cfg.counter.dupes_only:
-            base_names = []
-            for p in paths:
-                ext_stem = p.suffix.lstrip('.')
-                date_str = Renamer._format_date(cfg.dt, p)
-                time_str = Renamer._format_time(cfg.dt, p)
-                base_name = TokenProcessor.apply_name_mask(
-                    cfg.mask.name_mask,
-                    p.stem,
-                    ext_stem,
-                    "",
-                    date_str,
-                    time_str,
-                    p,
-                    cfg.dt.date_type
-                )
-                base_names.append(base_name)
-
-            # Identify duplicate base names
-            name_counts = defaultdict(int)
-            for name in base_names:
-                name_counts[name] += 1
-            duplicate_names = {name for name, count in name_counts.items() if count > 1}
-
-            # Generate names with counters for duplicates
-            name_counters = defaultdict(int)
-            for i, p in enumerate(paths):
-                base_name = base_names[i]
-                counter_str = ""
-                if base_name in duplicate_names:
-                    name_counters[base_name] += 1
-                    counter_value = cfg.counter.start + (name_counters[base_name] - 1) * cfg.counter.step
-                    counter_str = f"{counter_value:0{cfg.counter.digits}d}"
-
-                date_str = Renamer._format_date(cfg.dt, p)
-                time_str = Renamer._format_time(cfg.dt, p)
-                results.append(
-                    Renamer._generate_single_name(p, cfg, counter_str, date_str, time_str)
-                )
-        else:
-            # Sequential counter mode
-            counter_state = cfg.counter.start
-            for p in paths:
-                counter_str = f"{counter_state:0{cfg.counter.digits}d}"
-                counter_state += cfg.counter.step
-                date_str = Renamer._format_date(cfg.dt, p)
-                time_str = Renamer._format_time(cfg.dt, p)
-                results.append(
-                    Renamer._generate_single_name(p, cfg, counter_str, date_str, time_str)
-                )
-
+        for i, key in enumerate(keys):
+            if counts[key] == 1:
+                results.append(base_names[i])
+                continue
+            value = cfg.counter.start + counters[key] * cfg.counter.step
+            counters[key] += 1
+            results.append(generate(i, f"{value:0{cfg.counter.digits}d}"))
         return results
 
     @staticmethod
-    def plan_moves(paths: list[Path], new_names: list[str]) -> list[tuple[Path, Path]]:
+    def plan_moves(paths: list[Path], new_names: list[str], *,
+                   windows_safe: bool = False) -> list[tuple[Path, Path]]:
         """Plan rename operations.
 
         **Parameters:**
             `paths` (list[Path]): Source file paths
             `new_names` (list[str]): New filenames
+            `windows_safe` (bool): Enforce Windows rules on every platform
 
         **Returns:**
             `list[tuple[Path, Path]]`: Source-destination pairs
 
         **Raises:**
-            `ValueError`: If paths and new_names have different lengths
+            `ValueError`: If lengths differ or a destination name is invalid
         """
         if len(paths) != len(new_names):
             raise ValueError("Paths and new_names must have the same length")
+        platform = 'windows' if os.name == 'nt' else 'linux'
+        for path, name in zip(paths, new_names):
+            if not Validator.validate_filename(name, windows_safe=windows_safe or os.name == 'nt'):
+                raise ValueError(f"Invalid destination filename: {name!r}")
+            if not Validator.validate_path_length(path.parent, name, platform=platform):
+                raise ValueError(f"Destination name or path is too long: {name!r}")
         return [(p, p.with_name(n)) for p, n in zip(paths, new_names)]
 
     @staticmethod
@@ -148,6 +138,8 @@ class Renamer:
         counter_str: str,
         date_str: str,
         time_str: str,
+        timestamp: datetime,
+        compiled: re.Pattern | None,
     ) -> str:
         """Generate single filename from configuration.
 
@@ -157,6 +149,8 @@ class Renamer:
             `counter_str` (str): Counter string
             `date_str` (str): Formatted date
             `time_str` (str): Formatted time
+            `timestamp` (datetime): Shared file timestamp for custom tokens
+            `compiled` (re.Pattern | None): Prepared search pattern
 
         **Returns:**
             `str`: Generated filename
@@ -170,162 +164,95 @@ class Renamer:
         new_name = TokenProcessor.apply_name_mask(
             cfg.mask.name_mask,
             oname,
-            ext,
+            ext_stem,
             counter_str,
             date_str,
             time_str,
             p,
-            cfg.dt.date_type
+            cfg.dt.date_type,
+            timestamp
         )
 
-        new_ext = TokenProcessor.apply_name_mask(
-            cfg.mask.ext_mask,
-            ext_stem,
-            ext,
-            counter_str,
-            date_str,
-            time_str,
-            p,
-            cfg.dt.date_type
-        )
+        if cfg.mask.ext_mask == '{ext}':
+            # Preserve the original suffix, including a lone dot on Unix
+            new_ext = ext
+        else:
+            new_ext = TokenProcessor.apply_name_mask(
+                cfg.mask.ext_mask,
+                ext_stem,
+                ext_stem,
+                counter_str,
+                date_str,
+                time_str,
+                p,
+                cfg.dt.date_type,
+                timestamp
+            )
         if new_ext and not new_ext.startswith('.'):
             new_ext = f".{new_ext}"
 
         # Apply search/replace if configured
         if cfg.repl and cfg.repl.pattern:
-            new_name = Renamer._apply_replace(new_name, cfg.repl, name_only=True)
+            new_name = Renamer._apply_replace(new_name, cfg.repl, compiled)
             if not cfg.repl.exclude_extension:
-                new_ext = Renamer._apply_replace(new_ext, cfg.repl, name_only=False)
+                new_ext = Renamer._apply_replace(new_ext, cfg.repl, compiled)
 
         # Apply case transformation
         new_name = Renamer._apply_case(new_name, cfg.case)
         # Keep extension case unchanged
 
-        # Sanitize for Windows compatibility if enabled
-        if cfg.case.windows_names:
-            new_name = Validator.sanitize_filename(new_name, windows_safe=True)
-            if new_ext:  # Only sanitize extension if it's not empty
-                new_ext = Validator.sanitize_filename(new_ext, windows_safe=True)
-
-        return f"{new_name}{new_ext}"
-
+        # Sanitize the complete name before duplicate grouping and validation
+        return Validator.sanitize_filename(
+            f"{new_name}{new_ext}", windows_safe=cfg.case.windows_names or os.name == 'nt',
+            linux_safe=os.name != 'nt'
+        )
 
 #########################################
 # HELPER METHODS - Date/time formatting #
 #########################################
     @staticmethod
-    def _format_date(cfg: DateTimeCfg, path: Path) -> str:
-        """Format date according to configuration.
+    def _format_date(cfg: DateTimeCfg, timestamp: datetime) -> str:
+        """Format a shared timestamp according to date configuration.
 
         **Parameters:**
             `cfg` (DateTimeCfg): Date/time configuration
-            `path` (Path): File path
+            `timestamp` (datetime): Timestamp resolved for the source file
 
         **Returns:**
             `str`: Formatted date string
         """
-        # Get datetime based on configuration
-        dt = Renamer._get_datetime(cfg, path)
-
-        # Format date according to specified format
-        if cfg.date_format == 'YYYYMMDD':
-            date_str = dt.strftime("%Y%m%d")
-        elif cfg.date_format == 'DDMMYYYY':
-            date_str = dt.strftime("%d%m%Y")
-        elif cfg.date_format == 'MMDDYYYY':
-            date_str = dt.strftime("%m%d%Y")
-        elif cfg.date_format == 'YYYYMM':
-            date_str = dt.strftime("%Y%m")
-        elif cfg.date_format == 'MMYYYY':
-            date_str = dt.strftime("%m%Y")
-        else:  # YYYY
-            date_str = dt.strftime("%Y")
-
-        # Get separator character
-        sep = Renamer._sep_value(cfg.date_sep)
-
-        # Define format parts for each date format
-        format_parts = {
-            'YYYYMMDD': (4, 6),
-            'DDMMYYYY': (2, 4),
-            'MMDDYYYY': (2, 4),
-            'YYYYMM': (4,),
-            'MMYYYY': (2,),
-            'YYYY': ()
+        formats = {
+            'YYYYMMDD': ('%Y', '%m', '%d'),
+            'DDMMYYYY': ('%d', '%m', '%Y'),
+            'MMDDYYYY': ('%m', '%d', '%Y'),
+            'YYYYMM': ('%Y', '%m'),
+            'MMYYYY': ('%m', '%Y'),
+            'YYYY': ('%Y',)
         }
-
-        # Insert separators at appropriate positions
-        parts = format_parts[cfg.date_format]
-        if cfg.date_format in ['YYYYMMDD', 'DDMMYYYY', 'MMDDYYYY']:
-            start1, start2 = parts
-            return f"{date_str[:start1]}{sep}{date_str[start1:start2]}{sep}{date_str[start2:]}"
-        elif cfg.date_format in ['YYYYMM', 'MMYYYY']:
-            start1 = parts[0]
-            return f"{date_str[:start1]}{sep}{date_str[start1:]}"
-        else:  # YYYY
-            return date_str
+        if cfg.date_format not in formats:
+            raise ValueError(f"Unknown date format: {cfg.date_format}")
+        return timestamp.strftime(Renamer._sep_value(cfg.date_sep).join(formats[cfg.date_format]))
 
     @staticmethod
-    def _format_time(cfg: DateTimeCfg, path: Path) -> str:
-        """Format time according to configuration.
+    def _format_time(cfg: DateTimeCfg, timestamp: datetime) -> str:
+        """Format a shared timestamp according to time configuration.
 
         **Parameters:**
             `cfg` (DateTimeCfg): Date/time configuration
-            `path` (Path): File path
+            `timestamp` (datetime): Timestamp resolved for the source file
 
         **Returns:**
             `str`: Formatted time string
         """
-        # Get datetime based on configuration
-        dt = Renamer._get_datetime(cfg, path)
-
-        # Format time according to specified format
-        if cfg.time_format == 'HHMMSS':
-            time_str = dt.strftime("%H%M%S")
-        elif cfg.time_format == 'HHMM':
-            time_str = dt.strftime("%H%M")
-        else:
-            time_str = dt.strftime("%H")
-
-        # Get separator character
-        sep = Renamer._sep_value(cfg.time_sep)
-
-        # Define format parts for each time format
-        format_parts = {
-            'HHMMSS': (2, 4),
-            'HHMM': (2,),
-            'HH': ()
-        }
-
-        # Insert separators at appropriate positions based on format
-        parts = format_parts[cfg.time_format]
-        if cfg.time_format == 'HHMMSS':
-            return f"{time_str[:parts[0]]}{sep}{time_str[parts[0]:parts[1]]}{sep}{time_str[parts[1]:]}"
-        elif cfg.time_format == 'HHMM':
-            return f"{time_str[:parts[0]]}{sep}{time_str[parts[0]:]}"
-        else:
-            return time_str
-
-    @staticmethod
-    def _get_datetime(cfg: DateTimeCfg, path: Path) -> datetime:
-        """Get datetime object based on configuration.
-
-        **Parameters:**
-            `cfg` (DateTimeCfg): Date/time configuration
-            `path` (Path): File path
-
-        **Returns:**
-            `datetime`: Datetime object
-        """
-        if cfg.date_type == 'change':
-            return Renamer._file_datetime(path, cfg.date_type)
-        return datetime.now()
+        formats = {'HHMMSS': ('%H', '%M', '%S'), 'HHMM': ('%H', '%M'), 'HH': ('%H',)}
+        if cfg.time_format not in formats:
+            raise ValueError(f"Unknown time format: {cfg.time_format}")
+        return timestamp.strftime(Renamer._sep_value(cfg.time_sep).join(formats[cfg.time_format]))
 
 
 #########################################
 # HELPER METHODS - Text transformations #
 #########################################
-    # Text-Tranformation
     @staticmethod
     def _apply_case(text: str, cfg: CaseCfg) -> str:
         """Apply case transformation.
@@ -342,43 +269,51 @@ class Renamer:
         return TokenProcessor.apply_case_transform(text, cfg.mode)
 
     @staticmethod
-    def _apply_replace(text: str, cfg: ReplaceCfg, name_only: bool) -> str:
-        """Apply search/replace operation.
+    def validate_replace(cfg: ReplaceCfg | None) -> re.Pattern | None:
+        """Prepare a search pattern and validate regex replacement references.
+
+        **Parameters:**
+            `cfg` (ReplaceCfg | None): Search and replacement settings
+
+        **Returns:**
+            `re.Pattern | None`: Compiled pattern or None if search is disabled
+
+        **Raises:**
+            `ValueError`: If the search pattern or regex replacement is invalid
+        """
+        if cfg is None or not cfg.pattern:
+            return None
+        try:
+            compiled = Renamer._compile_search_replace_pattern(
+                cfg.pattern, cfg.regex, cfg.exact, cfg.case_sensitive
+            )
+            if cfg.regex:
+                compiled.sub(cfg.replace, '')
+            return compiled
+        except (re.PatternError, IndexError) as e:
+            raise ValueError(f"Invalid search or replacement pattern: {e}") from e
+
+    @staticmethod
+    def _apply_replace(text: str, cfg: ReplaceCfg, compiled: re.Pattern | None = None) -> str:
+        """Apply search options using a prepared regex or wildcard pattern.
 
         **Parameters:**
             `text` (str): Text to process
-            `cfg` (ReplaceCfg): Search/replace configuration
-            `name_only` (bool): Exclude extension
+            `cfg` (ReplaceCfg): Search and replacement settings
+            `compiled` (re.Pattern | None): Pattern prepared for the entire preview
 
         **Returns:**
             `str`: Text with replacements applied
         """
-        # Return unchanged if no pattern specified
         if not cfg.pattern:
             return text
-
-        # Apply search/replace based on configuration
-        pattern = cfg.pattern
-        repl = cfg.replace
-
-        try:
-            # Use regex mode if enabled
-            if cfg.regex:
-                compiled = re.compile(pattern)
-                count = 1 if cfg.first_only else 0
-                result = compiled.sub(repl, text, count=count)
-            else:
-                # Compile pattern with search options
-                compiled = Renamer._compile_search_replace_pattern(
-                    pattern, False, cfg.exact, cfg.case_sensitive
-                )
-                count = 1 if cfg.first_only else 0
-                result = compiled.sub(repl, text, count=count)
-        except re.error:
-            # Return unchanged text if regex is invalid
-            return text
-
-        return result
+        if compiled is None:
+            compiled = Renamer.validate_replace(cfg)
+        count = 1 if cfg.first_only else 0
+        if cfg.regex:
+            return compiled.sub(cfg.replace, text, count=count)
+        # Treat replacement text literally outside regex mode
+        return compiled.sub(lambda match: cfg.replace, text, count=count)
 
     @staticmethod
     def _compile_search_replace_pattern(text: str, regex: bool, exact: bool, case_sensitive: bool) -> re.Pattern:
@@ -401,8 +336,8 @@ class Renamer:
             esc = re.escape(text)
 
             # Convert wildcard symbols to regex equivalents
-            esc = esc.replace(r'\*\*', '.*')  # '**' -> everything between the first and the next occurrence
-            esc = esc.replace(r'\*', '.*?')   # '*'  -> everything between the first and last occurrence
+            esc = esc.replace(r'\*\*', '.*')  # '**' -> everything between the first and last occurrence
+            esc = esc.replace(r'\*', '.*?')   # '*'  -> everything between the first and next occurrence
             esc = esc.replace(r'\?', '.')     # '?'  -> single character
 
             pat = esc
@@ -414,11 +349,7 @@ class Renamer:
         # Apply case sensitivity flag
         flags = 0 if case_sensitive else re.IGNORECASE
 
-        # Compile pattern safely, fallback to non-matching regex if invalid
-        try:
-            return re.compile(pat, flags)
-        except re.error:
-            return re.compile(r'(?!x)x')
+        return re.compile(pat, flags)
 
 
 ######################################
@@ -439,23 +370,3 @@ class Renamer:
             'space': ' '
         }
         return separator_map.get(val, val)
-
-    @staticmethod
-    def _file_datetime(path: Path, date_type: str) -> datetime:
-        """Get datetime based on source type.
-
-        **Parameters:**
-            `path` (Path): File path
-            `date_type` (str): Source type (current or change)
-
-        **Returns:**
-            `datetime`: Timestamp from current time or file mtime
-        """
-        if date_type == 'current':
-            return datetime.now()
-
-        try:
-            ts = path.stat().st_mtime
-            return datetime.fromtimestamp(ts)
-        except (FileNotFoundError, OSError, PermissionError):
-            return datetime.now()

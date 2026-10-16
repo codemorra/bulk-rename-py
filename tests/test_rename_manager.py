@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from modules.core.file_operations import MoveExecutor
+from modules.core.types import ReplaceCfg
 from modules.gui.rename_manager import RenameManager
 
 
@@ -28,9 +29,10 @@ def qt_application():
 
 
 @pytest.fixture
-def manager_factory(qt_application, monkeypatch):
+def manager_factory(qt_application, monkeypatch, basic_rename_config):
     """Create managers with real table cells and intercepted confirmation dialogs."""
     messages = []
+    monkeypatch.setattr(QMessageBox, 'warning', lambda *args: messages.append(args[2]))
     monkeypatch.setattr(QMessageBox, 'critical', lambda *args: messages.append(args[2]))
     monkeypatch.setattr(QMessageBox, 'information', lambda *args: messages.append(args[2]))
 
@@ -47,8 +49,9 @@ def manager_factory(qt_application, monkeypatch):
         manager = RenameManager(window)
         manager.helpers = SimpleNamespace(
             tr=lambda key: key, question_box=lambda *args: True,
-            reset_text_fields=lambda: None
+            reset_text_fields=lambda: None, is_windows=lambda: False
         )
+        manager.collect_cfg = lambda: basic_rename_config
         manager.table_manager.update_preview_later = lambda: None
         # Isolate execution state from the filename validation covered separately
         manager.precheck_rename_block_on_overlength = lambda: True
@@ -263,4 +266,95 @@ class TestEditorFailures:
         assert manager._read_edited_lines(preview) is None
         assert messages == ['messages.errors.read_failed']
         assert manager.main_window.table.item(0, 1).text() == 'destination.txt'
+
+
+class TestPreviewValidation:
+    """Test common validation of generated and externally edited preview names."""
+
+    @pytest.mark.parametrize('name', ['', '.', '..', 'a/b', 'a\x00b'])
+    def test_invalid_edited_names_are_marked_and_blocked(self, tmp_path, manager_factory, name):
+        """Test that invalid editor input stays visible and cannot reach file execution."""
+        src = tmp_path / 'source.txt'
+        src.write_text('content', encoding='utf-8')
+        manager, messages = manager_factory([(src, tmp_path / 'destination.txt')])
+        manager.precheck_rename_block_on_overlength = (
+            RenameManager.precheck_rename_block_on_overlength.__get__(manager)
+        )
+
+        manager._apply_edited_names([name])
+
+        item = manager.main_window.table.item(0, 1)
+        assert item.text() == name
+        assert item.font().italic()
+        assert 'filename_invalid_chars' in item.toolTip()
+
+        manager.perform_rename()
+
+        assert src.read_text(encoding='utf-8') == 'content'
+        assert not manager.main_window._undo_stack
+        assert messages == ['messages.warnings.invalid_chars']
+
+    def test_optional_windows_mode_validates_edited_names(self, tmp_path, manager_factory):
+        """Test that Windows naming rules also apply to edited names on Linux."""
+        src = tmp_path / 'source.txt'
+        src.write_text('content', encoding='utf-8')
+        manager, messages = manager_factory([(src, tmp_path / 'destination.txt')])
+        manager.collect_cfg().case.windows_names = True
+        manager.precheck_rename_block_on_overlength = (
+            RenameManager.precheck_rename_block_on_overlength.__get__(manager)
+        )
+
+        manager._apply_edited_names(['CON.txt'])
+        manager.perform_rename()
+
+        assert manager.main_window.table.item(0, 1).font().italic()
+        assert messages == ['messages.warnings.invalid_chars']
+        assert src.read_text(encoding='utf-8') == 'content'
+
+    def test_invalid_pattern_clears_stale_preview_and_blocks_execution(
+            self, tmp_path, manager_factory):
+        """Test that a preview error cannot leave executable names from older settings."""
+        src = tmp_path / 'source.txt'
+        src.write_text('content', encoding='utf-8')
+        manager, messages = manager_factory([(src, tmp_path / 'stale.txt')])
+        cfg = manager.collect_cfg()
+        cfg.mask.name_mask = '{name}'
+        cfg.repl = ReplaceCfg('[', 'x', True, False, True, True, False)
+        manager.precheck_rename_block_on_overlength = (
+            RenameManager.precheck_rename_block_on_overlength.__get__(manager)
+        )
+
+        manager.update_preview_now()
+        manager.perform_rename()
+
+        item = manager.main_window.table.item(0, 1)
+        assert item.text() == ''
+        assert item.font().italic()
+        assert 'preview_failed' in item.toolTip()
+        assert any('preview_failed' in message for message in messages)
+        assert src.read_text(encoding='utf-8') == 'content'
+        assert not manager.main_window._undo_stack
+
+        # Correct the settings and verify the preview can be used again
+        cfg.repl = ReplaceCfg('source', 'renamed', True, False, True, True, False)
+        manager.update_preview_now()
+
+        assert item.text() == 'renamed.txt'
+        assert not item.font().italic()
+        manager.perform_rename()
+        assert (tmp_path / 'renamed.txt').read_text(encoding='utf-8') == 'content'
+        assert table_paths(manager) == [tmp_path / 'renamed.txt']
+
+    def test_plan_validation_still_blocks_invalid_names(self, tmp_path, manager_factory):
+        """Test the final planning check independently of the earlier GUI preflight."""
+        src = tmp_path / 'source.txt'
+        src.write_text('content', encoding='utf-8')
+        manager, messages = manager_factory([(src, tmp_path / 'destination.txt')])
+        manager.main_window.table.item(0, 1).setText('a/b')
+
+        manager.perform_rename()
+
+        assert src.read_text(encoding='utf-8') == 'content'
+        assert not manager.main_window._undo_stack
+        assert any('Invalid destination filename' in message for message in messages)
 

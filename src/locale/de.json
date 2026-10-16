@@ -129,6 +129,7 @@
       "no_undo": "Es ist kein Undo-Vorgang verfügbar."
     },
     "errors": {
+      "preview_failed": "Die Vorschau konnte nicht erstellt werden. Bitte die Namenseinstellungen prüfen:",
       "read_failed": "Die geänderte Datei konnte nicht gelesen werden.",
       "editor_count_mismatch": "Die Anzahl der Zeilen in der Datei stimmt nicht mit der Anzahl der geladenen Dateien überein.",
       "conflicts_found": "Es wurden Namenskonflikte festgestellt. Die betroffenen Dateien können nicht umbenannt werden:",
@@ -138,6 +139,7 @@
       "undo_failed": "Beim Rückgängigmachen sind Fehler aufgetreten:"
     },
     "warnings": {
+      "invalid_chars": "Mindestens ein Zielname ist ungültig. Umbenennung nicht möglich.",
       "name_too_long": "Mindestens ein Zielname ist zu lang.\nUmbenennung nicht möglich."
     }
   },
@@ -183,7 +185,7 @@
       "spin_start": "Legt den Startwert des Zählers fest, mit dem die Nummerierung beginnt",
       "spin_step": "Legt fest, um welchen Wert der Zähler bei jeder weiteren Datei steigt",
       "spin_digits": "Legt fest, auf wie viele Ziffern der Zähler bei Bedarf mit führenden Nullen aufgefüllt wird",
-      "cb_dupes": "Beschränkt die Zählervergabe auf Dateien mit identischem Basisnamen"
+      "cb_dupes": "Nummeriert nur Dateien, deren erzeugte Zielnamen im selben Verzeichnis kollidieren"
     },
     "advanced_opts": {
       "cmb_case": "Legt fest, wie die Groß- und Kleinschreibung der neuen Dateinamen angepasst wird",
@@ -197,6 +199,7 @@
       "btn_undo": "Macht die zuletzt durchgeführte Umbenennung rückgängig\n(funktioniert nur, solange das Programm nicht beendet wurde!)"
     },
     "table": {
+      "filename_invalid_chars": "Ungültiger Dateiname oder unzulässige Zeichen.",
       "filename_too_long_windows": "Name oder Pfad ist zu lang. (Windows)",
       "filename_too_long_linux": "Name oder Pfad überschreitet die Byte-Grenze. (Linux)"
     }
