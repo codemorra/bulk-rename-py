@@ -8,11 +8,12 @@ import os
 from pathlib import Path
 
 # Constants
-ILLEGAL_WIN_CHARS = set("<>:'/\\|?*")
+ILLEGAL_WIN_CHARS = set('<>:"/\\|?*')
 RESERVED_WIN_NAMES = {
     'CON', 'PRN', 'AUX', 'NUL',
     *{f'COM{i}' for i in range(1, 10)},
     *{f'LPT{i}' for i in range(1, 10)},
+    *{f'{prefix}{digit}' for prefix in ('COM', 'LPT') for digit in '¹²³'},
 }
 
 
@@ -41,13 +42,17 @@ class Validator:
             `str`: Sanitized filename
 
         **Behavior:**
-            Windows: Replaces illegal chars, wraps reserved names
+            Windows: Replaces illegal chars, prefixes reserved names, trims invalid endings
             Linux: Replaces '/' with Unicode fraction slash
             Always: Removes null bytes, handles empty names
         """
-        # Replace illegal Windows characters with underscores
+        # Remove null bytes before applying platform-specific rules
+        name = name.replace('\x00', '')
+
+        # Replace illegal Windows characters and remove unsupported endings
         if windows_safe:
-            name = ''.join(ch if ch not in ILLEGAL_WIN_CHARS else '_' for ch in name)
+            name = ''.join(ch if ch not in ILLEGAL_WIN_CHARS and ord(ch) >= 32 else '_'
+                           for ch in name).rstrip(' .')
             if Validator._is_reserved_win_name(name):
                 name = f"_{name}"
 
@@ -55,9 +60,8 @@ class Validator:
         if linux_safe:
             name = name.replace('/', '\u2044')
 
-        # Remove null bytes and handle empty names
-        name = name.strip().replace('\x00', '')
-        if not name:
+        # Handle empty names without stripping valid Unix filename spaces
+        if not name or name.isspace():
             name = '_'
 
         return name
@@ -73,7 +77,7 @@ class Validator:
         **Returns:**
             `bool`: True if valid
         """
-        if not name or name.isspace():
+        if not name or name.isspace() or name in ('.', '..') or '/' in name or '\x00' in name:
             return False
 
         if windows_safe:
@@ -82,9 +86,7 @@ class Validator:
                 return False
             if Validator._contains_illegal_win_chars(name):
                 return False
-        else:
-            # Linux/Unix: only null byte is forbidden
-            if '\x00' in name:
+            if name.endswith((' ', '.')):
                 return False
 
         return True
@@ -102,21 +104,21 @@ class Validator:
             `bool`: True if within platform limits
 
         **Limits:**
-            Windows: MAX_PATH=260 chars, NAME_MAX=255 chars
+            Windows: MAX_PATH=260 UTF-16 units including null, NAME_MAX=255 units
             Linux: PATH_MAX=4096 bytes, NAME_MAX=255 bytes
         """
         try:
-            full_path = base_dir / name
+            full_path = base_dir.absolute() / name
 
             # Auto-detect platform if not specified
             if platform == 'auto':
                 platform = 'windows' if os.name == 'nt' else 'linux'
 
-            # Windows path length validation (character count)
+            # Windows path length validation (UTF-16 code units)
             if platform == 'windows':
-                if len(str(full_path)) > 260:
-                    return False
-                return len(name) <= 255
+                path_units = len(str(full_path).encode('utf-16-le')) // 2
+                name_units = len(name.encode('utf-16-le')) // 2
+                return path_units < 260 and name_units <= 255
 
             # Linux path length validation (byte count with UTF-8 encoding)
             elif platform == 'linux':
@@ -126,7 +128,7 @@ class Validator:
 
                     if name_bytes > 255:
                         return False
-                    return path_bytes <= 4096
+                    return path_bytes < 4096
                 except UnicodeEncodeError:
                     return False
 
@@ -201,9 +203,7 @@ class Validator:
             `bool`: True if reserved name
         """
         # Extract base name (remove extension) and convert to uppercase for comparison
-        base = name.upper()
-        if '.' in base:
-            base = base.split('.')[0]
+        base = name.split('.', 1)[0].rstrip(' ').upper()
         return base in RESERVED_WIN_NAMES
 
     @staticmethod
@@ -216,4 +216,4 @@ class Validator:
         **Returns:**
             `bool`: True if contains illegal characters
         """
-        return any(ch in ILLEGAL_WIN_CHARS for ch in name)
+        return any(ch in ILLEGAL_WIN_CHARS or ord(ch) < 32 for ch in name)

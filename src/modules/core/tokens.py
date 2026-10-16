@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-
-# Bulk Rename Py
-# © 2026–present Codemorra (Christopher Kranz)
-# Licensed under the MIT License (see LICENSE file)
-
 """Token processing and mask application.
 
 Handles replacement of placeholder tokens in filename masks,
@@ -12,10 +6,8 @@ and their variants with slicing (e.g., {name1-3}, {ext1-2}).
 """
 
 import re
-from pathlib import Path
-from typing import Tuple, Dict, List, Optional
 from datetime import datetime
-
+from pathlib import Path
 
 # Patterns
 _LITERAL_BRACES_PATTERN = re.compile(r'\{\{\}([^{}]+)\{\}\}')
@@ -42,8 +34,9 @@ class TokenProcessor:
             counter: str,
             date_str: str,
             time_str: str,
-            path: Optional[Path] = None,
-            date_type: str = 'current'
+            path: Path | None = None,
+            date_type: str = 'current',
+            timestamp: datetime | None = None
     ) -> str:
         """Apply placeholders in name mask.
 
@@ -56,8 +49,9 @@ class TokenProcessor:
             `counter` (str): Formatted counter
             `date_str` (str): Formatted date
             `time_str` (str): Formatted time
-            `path` (Optional[Path]): File path for date_type='change'
+            `path` (Path | None): File path for date_type='change'
             `date_type` (str): Date source ("current" or "change")
+            `timestamp` (datetime | None): Shared timestamp supplied by the preview
 
         **Returns:**
             `str`: Result after applying mask
@@ -73,6 +67,7 @@ class TokenProcessor:
         esc_mask, litmap = TokenProcessor._escape_literal_braces(mask)
 
         def _repl(m: re.Match) -> str:
+            nonlocal timestamp
             tok = m.group(1)
 
             # Handle {name} and {nameX-Y} tokens
@@ -102,10 +97,14 @@ class TokenProcessor:
                 return time_str
 
             # Handle custom date/time format patterns
-            if TokenProcessor._is_custom_date_format(tok):
-                return TokenProcessor._format_custom_date(tok, date_str, time_str, path, date_type)
-            elif TokenProcessor._is_custom_time_format(tok):
-                return TokenProcessor._format_custom_time(tok, time_str, path, date_type)
+            is_date = TokenProcessor._is_custom_date_format(tok)
+            is_time = TokenProcessor._is_custom_time_format(tok)
+            if is_date or is_time:
+                if timestamp is None:
+                    timestamp = TokenProcessor.get_datetime(path, date_type)
+                if is_date:
+                    return TokenProcessor._format_custom_date(tok, timestamp)
+                return TokenProcessor._format_custom_time(tok, timestamp)
 
             # Return unknown tokens unchanged
             return f'{{{tok}}}'
@@ -154,7 +153,7 @@ class TokenProcessor:
 # HELPER METHODS #
 ##################
     @staticmethod
-    def _escape_literal_braces(mask: str) -> Tuple[str, Dict[str, str]]:
+    def _escape_literal_braces(mask: str) -> tuple[str, dict[str, str]]:
         """Escape literal brace segments in mask.
 
         Converts segments like {{}name{}} to temporary placeholders.
@@ -163,7 +162,7 @@ class TokenProcessor:
             `mask` (str): Input mask containing tokens and literal braces
 
         **Returns:**
-            `Tuple[str, Dict[str, str]]`: Modified mask and mapping of placeholders to original content
+            `tuple[str, dict[str, str]]`: Modified mask and mapping of placeholders to original content
         """
         litmap = {}
 
@@ -175,12 +174,12 @@ class TokenProcessor:
         return _LITERAL_BRACES_PATTERN.sub(_repl, mask), litmap
 
     @staticmethod
-    def _restore_literal_braces(text: str, mapping: Dict[str, str]) -> str:
+    def _restore_literal_braces(text: str, mapping: dict[str, str]) -> str:
         """Restore literal brace markers.
 
         **Parameters:**
             `text` (str): Text containing __LITERAL_i__ markers
-            `mapping` (Dict[str, str]): Placeholder to original literal mapping
+            `mapping` (dict[str, str]): Placeholder to original literal mapping
 
         **Returns:**
             `str`: Text with restored literal braces
@@ -233,7 +232,7 @@ class TokenProcessor:
         """
         # Check for patterns like yyyy-mm-dd, dd.mm.yyyy, yyyymmdd, etc.
         # Support separators: - _ . ; space : or no separator
-        return bool(re.fullmatch(r'(yyyy|yy|mm|dd)([\-._; :]?)((yyyy|yy|mm|dd)([\-._; :]?)(yyyy|yy|mm|dd))?', tok))
+        return bool(re.fullmatch(r'(yyyy|yy|mm|dd)(?:[\-._; :]?(?:yyyy|yy|mm|dd)){0,2}', tok))
 
     @staticmethod
     def _is_custom_time_format(tok: str) -> bool:
@@ -252,77 +251,50 @@ class TokenProcessor:
                 bool(re.fullmatch(r'(hh|mm|ss)', tok)))
 
     @staticmethod
-    def _format_custom_date(format_pattern: str, date_str: str, time_str: str, path: Optional[Path] = None, date_type: str = 'current') -> str:
-        """Format date according to custom pattern.
+    def get_datetime(path: Path | None, date_type: str, now: datetime | None = None) -> datetime:
+        """Resolve a file timestamp with a shared current-time fallback.
+
+        **Parameters:**
+            `path` (Path | None): Source file for modification time
+            `date_type` (str): Date source ("current" or "change")
+            `now` (datetime | None): Current time shared across a preview
+
+        **Returns:**
+            `datetime`: File modification time or the supplied current time
+        """
+        current = now if now is not None else datetime.now()
+        if date_type == 'change' and path is not None:
+            try:
+                return datetime.fromtimestamp(path.stat().st_mtime)
+            except (OSError, OverflowError, ValueError):
+                return current
+        return current
+
+    @staticmethod
+    def _format_custom_date(format_pattern: str, timestamp: datetime) -> str:
+        """Format a custom date token using the shared file timestamp.
 
         **Parameters:**
             `format_pattern` (str): Custom format pattern (e.g., 'yyyy-mm-dd')
-            `date_str` (str): Pre-formatted date string from configuration
-            `time_str` (str): Pre-formatted time string (unused for date)
-            `path` (Optional[Path]): File path for date_type='change'
-            `date_type` (str): Date source ("current" or "change")
+            `timestamp` (datetime): Timestamp resolved for the source file
 
         **Returns:**
-            `str`: Formatted date string or original token if pattern is invalid
+            `str`: Formatted date string
         """
-        # Parse the custom format pattern
-        try:
-            # Replace common format placeholders with strftime format codes
-            pattern = format_pattern
-            pattern = pattern.replace('yyyy', '%Y')
-            pattern = pattern.replace('yy', '%y')
-            pattern = pattern.replace('mm', '%m')
-            pattern = pattern.replace('dd', '%d')
-
-            # Get datetime based on date_type
-            if date_type == 'change' and path:
-                try:
-                    ts = path.stat().st_mtime
-                    dt = datetime.fromtimestamp(ts)
-                except (FileNotFoundError, OSError, PermissionError):
-                    dt = datetime.now()
-            else:
-                dt = datetime.now()
-            
-            # Format using the parsed pattern
-            return dt.strftime(pattern)
-        except (ValueError, AttributeError):
-            # Return original token if formatting fails
-            return f'{{{format_pattern}}}'
+        pattern = format_pattern.replace('yyyy', '%Y').replace('yy', '%y')
+        pattern = pattern.replace('mm', '%m').replace('dd', '%d')
+        return timestamp.strftime(pattern)
 
     @staticmethod
-    def _format_custom_time(format_pattern: str, time_str: str, path: Optional[Path] = None, date_type: str = 'current') -> str:
-        """Format time according to custom pattern.
+    def _format_custom_time(format_pattern: str, timestamp: datetime) -> str:
+        """Format a custom time token using the shared file timestamp.
 
         **Parameters:**
             `format_pattern` (str): Custom format pattern (e.g., 'hh-mm-ss')
-            `time_str` (str): Pre-formatted time string from configuration
-            `path` (Optional[Path]): File path for date_type='change'
-            `date_type` (str): Date source ("current" or "change")
+            `timestamp` (datetime): Timestamp resolved for the source file
 
         **Returns:**
-            `str`: Formatted time string or original token if pattern is invalid
+            `str`: Formatted time string
         """
-        # Parse the custom format pattern
-        try:
-            # Replace common format placeholders with strftime format codes
-            pattern = format_pattern
-            pattern = pattern.replace('hh', '%H')
-            pattern = pattern.replace('mm', '%M')
-            pattern = pattern.replace('ss', '%S')
-
-            # Get datetime based on date_type
-            if date_type == 'change' and path:
-                try:
-                    ts = path.stat().st_mtime
-                    dt = datetime.fromtimestamp(ts)
-                except (FileNotFoundError, OSError, PermissionError):
-                    dt = datetime.now()
-            else:
-                dt = datetime.now()
-            
-            # Format using the parsed pattern
-            return dt.strftime(pattern)
-        except (ValueError, AttributeError):
-            # Return original token if formatting fails
-            return f'{{{format_pattern}}}'
+        pattern = format_pattern.replace('hh', '%H').replace('mm', '%M').replace('ss', '%S')
+        return timestamp.strftime(pattern)

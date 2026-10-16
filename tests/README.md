@@ -11,6 +11,9 @@
 - Path validation
 - Conflict detection
 - Regex replacements
+- Consistent date/time tokens and one modification-time read per file
+- Duplicate numbering after replacement, sanitization, and extension changes
+- Shared validation of generated and externally edited names
 - Edge cases handled
 
 ## Requirements
@@ -34,21 +37,11 @@ python -m pytest
 python -m pytest tests/test_renamer.py::TestRenamer::test_preview_names_basic -v
 ```
 
-## Known Regression Tests
+## Regression Tests
 
 `test_regressions.py` records confirmed issues in file preservation, duplicate
 numbering, regex options, filename validation, and Windows preflight validation.
-Unresolved regression tests temporarily use strict `xfail` markers with a reason
-and an expected exception type. They execute normally and report the known failures explicitly.
-An unexpected pass fails the suite so the marker must be removed when the issue
-is fixed. File preservation, name swaps, occupied undo destinations, and Windows
-preflight validation now pass without expected-failure markers.
-
-Show the reasons for expected failures with:
-
-```bash
-python -m pytest -rx
-```
+All recorded regression tests now pass without expected-failure markers.
 
 File operation tests use temporary directories and verify file contents. The
 Windows preflight test simulates the platform check without opening GUI dialogs;
@@ -58,6 +51,11 @@ it does not replace testing the application on Windows.
 checks the reported recovery paths. `test_rename_manager.py` uses real Qt table
 cells with the offscreen platform plugin and intercepts confirmation dialogs;
 it does not open the main window or read user settings.
+
+`test_name_generation.py` checks combined naming options, regex errors, timestamp
+consistency across midnight, and reuse of file metadata and prepared search
+patterns. Filename validation also covers UTF-8 byte limits and Windows UTF-16
+code-unit limits.
 
 ## Lint Checks
 

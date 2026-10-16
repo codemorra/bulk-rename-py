@@ -13,7 +13,6 @@ from modules.core.types import (
     MaskCfg,
     RenameCfg,
 )
-from modules.core.validation import Validator
 
 
 class TestEdgeCases:
@@ -58,19 +57,9 @@ class TestEdgeCases:
         assert "{invalid_token}" in result
     
     def test_very_long_filenames(self, tmp_test_dir):
-        """Test handling of very long filenames."""
-        # Create a file with a very long name
+        """Test rejection of very long filenames before filesystem operations."""
         long_name = "a" * 300 + ".txt"
-        try:
-            filepath = tmp_test_dir / long_name
-            filepath.write_text("test")
-        except (OSError, ValueError):
-            pytest.skip("Cannot create very long filenames on this system")
-        
-        # Test validation
-        # Should fail Windows validation (MAX_PATH = 260)
-        assert not Validator.validate_path_length(tmp_test_dir, long_name, platform="windows")
-        
-        # Test sanitization
-        sanitized = Validator.sanitize_filename(long_name)
-        assert len(sanitized) > 0
+        source = tmp_test_dir / 'source.txt'
+
+        with pytest.raises(ValueError, match='Destination name or path is too long'):
+            Renamer.plan_moves([source], [long_name])

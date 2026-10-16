@@ -158,14 +158,28 @@ class RenameManager:
         # Collect configuration and generate preview names
         cfg = self.collect_cfg()
         paths = [Path(self.main_window.table.item(r, 0).data(Qt.UserRole)) for r in range(rowcount)]
-        new_names = Renamer.preview_names(paths, cfg)
-        
-        # Sanitize filenames for Linux
-        if not self.helpers.is_windows():
-            new_names = [Validator.sanitize_filename(name, linux_safe=True) for name in new_names]
+        try:
+            new_names = Renamer.preview_names(paths, cfg)
+        except ValueError as e:
+            self._set_preview_names([''] * rowcount, cfg.case.windows_names, str(e))
+            return
+        self._set_preview_names(new_names, cfg.case.windows_names)
 
+    def _set_preview_names(self, names: list[str], windows_safe: bool, error: str | None = None) -> None:
+        """Display generated or externally edited names with common validation.
+
+        **Parameters:**
+            `names` (list[str]): Names to display in table order
+            `windows_safe` (bool): Enforce Windows-compatible filenames
+            `error` (str | None): Preview generation error to show in every row
+
+        **Returns:**
+            `None`
+        """
+        platform = 'windows' if self.helpers.is_windows() else 'linux'
+        windows_safe = windows_safe or platform == 'windows'
         # Update table with preview names and validation
-        for r, new_name in enumerate(new_names):
+        for r, new_name in enumerate(names):
             src_item = self.main_window.table.item(r, 0)
             if src_item is None:
                 continue
@@ -182,11 +196,11 @@ class RenameManager:
             invalid = False
             messages = []
 
-            platform = 'windows' if self.helpers.is_windows() else 'linux'
-            
-            # Validate filename for Windows
-            if (platform == 'windows' and cfg.case.windows_names
-                    and not Validator.validate_filename(new_name, windows_safe=True)):
+            # Validate generated and externally edited filenames on every platform
+            if error is not None:
+                invalid = True
+                messages.append(self.helpers.tr('messages.errors.preview_failed') + '\n' + error)
+            elif not Validator.validate_filename(new_name, windows_safe=windows_safe):
                 invalid = True
                 messages.append(self.helpers.tr('tooltips.table.filename_invalid_chars'))
             
@@ -388,9 +402,8 @@ class RenameManager:
         **Returns:**
             `None`
         """
-        # Update each row in table with edited name
-        for r, val in enumerate(lines):
-            self.main_window.table.item(r, 1).setText(val)
+        # Apply the same validation and styling as generated preview names
+        self._set_preview_names(lines, self.collect_cfg().case.windows_names)
 
     def _cleanup_temp_file(self, tmpfile: Path) -> None:
         """Clean up temporary file.
@@ -435,7 +448,16 @@ class RenameManager:
         # Collect current paths and new names
         paths = [Path(self.main_window.table.item(r, 0).data(Qt.UserRole)) for r in range(rows)]
         new_names = [self.main_window.table.item(r, 1).text() for r in range(rows)]
-        plan = Renamer.plan_moves(paths, new_names)
+        try:
+            plan = Renamer.plan_moves(
+                paths, new_names, windows_safe=self.collect_cfg().case.windows_names
+            )
+        except ValueError as e:
+            QMessageBox.warning(
+                self.main_window, self.helpers.tr('messages.warning'),
+                self.helpers.tr('messages.warnings.invalid_chars') + '\n\n' + str(e)
+            )
+            return
 
         # Filter out no-op renames
         effective = [(src, dst) for src, dst in plan if src.name != dst.name]
@@ -543,9 +565,19 @@ class RenameManager:
             # Skip validation if no rows
             return True
 
-        # Validate each row in table
+        cfg = self.collect_cfg()
+        try:
+            Renamer.validate_replace(cfg.repl)
+        except ValueError as e:
+            QMessageBox.warning(
+                self.main_window, self.helpers.tr('messages.warning'),
+                self.helpers.tr('messages.errors.preview_failed') + '\n\n' + str(e)
+            )
+            return False
+
+        # Validate each row in table using the current compatibility mode
         for r in range(self.main_window.table.rowCount()):
-            if not self._validate_table_row(r):
+            if not self._validate_table_row(r, windows_safe=cfg.case.windows_names):
                 return False
 
         return True
@@ -558,11 +590,12 @@ class RenameManager:
         """
         return self.main_window.table.rowCount() > 0
 
-    def _validate_table_row(self, row: int) -> bool:
+    def _validate_table_row(self, row: int, *, windows_safe: bool = False) -> bool:
         """Validate a specific table row.
 
         **Parameters:**
             `row` (int): Row index to validate
+            `windows_safe` (bool): Enforce Windows-compatible filenames
 
         **Returns:**
             `bool`: True if row is valid, False otherwise
@@ -571,29 +604,32 @@ class RenameManager:
         item_new = self.main_window.table.item(row, 1)
         
         if not item_src or not item_new:
-            # Skip validation if items are missing
-            return True
+            # Block incomplete rows before constructing destination paths
+            self._show_invalid_chars_warning()
+            return False
 
         # Get base directory and new name for validation
         base_dir = Path(item_src.data(Qt.UserRole)).parent
         new_name = item_new.text()
         
-        return self._validate_name_length(base_dir, new_name)
+        return self._validate_name_length(base_dir, new_name, windows_safe=windows_safe)
 
-    def _validate_name_length(self, base_dir: Path, new_name: str) -> bool:
+    def _validate_name_length(self, base_dir: Path, new_name: str, *,
+                              windows_safe: bool = False) -> bool:
         """Validate filename length and characters.
 
         **Parameters:**
             `base_dir` (Path): Base directory path
             `new_name` (str): New filename to validate
+            `windows_safe` (bool): Enforce Windows-compatible filenames
 
         **Returns:**
             `bool`: True if validation passes, False otherwise
         """
         platform = 'windows' if self.helpers.is_windows() else 'linux'
         
-        # Validate filename characters for Windows
-        if platform == 'windows' and not Validator.validate_filename(new_name, windows_safe=True):
+        # Validate filename components before length checks on every platform
+        if not Validator.validate_filename(new_name, windows_safe=windows_safe or platform == 'windows'):
             self._show_invalid_chars_warning()
             return False
         

@@ -68,8 +68,6 @@ class TestRenameSafety:
 class TestNameGeneration:
     """Test configuration options affecting generated destination names."""
 
-    @pytest.mark.xfail(strict=True, raises=AssertionError,
-                       reason="Duplicate grouping ignores case transformations")
     def test_duplicates_after_case_transform(self, basic_rename_config):
         """Test duplicate numbering after converting names to lowercase."""
         cfg = basic_rename_config
@@ -81,8 +79,6 @@ class TestNameGeneration:
 
         assert names == ["a001.txt", "a002.txt"]
 
-    @pytest.mark.xfail(strict=True, raises=AssertionError,
-                       reason="Regex mode ignores the case sensitivity setting")
     def test_regex_case_insensitive(self, basic_rename_config):
         """Test case-insensitive replacement in regex mode."""
         cfg = basic_rename_config
@@ -99,15 +95,11 @@ class TestFilenameValidation:
     """Test invalid filename components before move planning."""
 
     @pytest.mark.parametrize("name", ['a"b.txt', "name.", "name.txt ", "a\x01.txt"])
-    @pytest.mark.xfail(strict=True, raises=AssertionError,
-                       reason="Windows validation accepts invalid filename characters")
     def test_invalid_windows_names(self, name):
         """Test rejection of invalid Windows filename characters and endings."""
         assert not Validator.validate_filename(name, windows_safe=True)
 
     @pytest.mark.parametrize("name", [".", "..", "a/b"])
-    @pytest.mark.xfail(strict=True, raises=AssertionError,
-                       reason="Unix validation accepts special names and path separators")
     def test_invalid_unix_names(self, name):
         """Test rejection of names that are not individual file components."""
         assert not Validator.validate_filename(name)

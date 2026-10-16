@@ -129,6 +129,7 @@
       "no_undo": "No undo operation available."
     },
     "errors": {
+      "preview_failed": "The preview could not be generated. Check the naming settings:",
       "read_failed": "The modified file could not be read.",
       "editor_count_mismatch": "The number of lines in the file does not match the number of loaded files.",
       "conflicts_found": "Naming conflicts were detected. The affected files cannot be renamed:",
@@ -138,6 +139,7 @@
       "undo_failed": "Errors occurred during undo:"
     },
     "warnings": {
+      "invalid_chars": "At least one destination filename is invalid. Renaming is not possible.",
       "name_too_long": "At least one destination name is too long. Renaming is not possible."
     }
   },
@@ -183,7 +185,7 @@
       "spin_start": "Sets the starting value of the counter where numbering begins",
       "spin_step": "Specifies how much the counter increases with each file",
       "spin_digits": "Defines how many digits the counter is padded to with leading zeros if needed",
-      "cb_dupes": "Restricts counter numbering to files with identical base names"
+      "cb_dupes": "Numbers only files whose generated destination names conflict in the same directory"
     },
     "advanced_opts": {
       "cmb_case": "Defines how the letter case of new filenames is adjusted",
@@ -197,6 +199,7 @@
       "btn_undo": "Undoes the last renaming operation (works only until the program is closed!)"
     },
     "table": {
+      "filename_invalid_chars": "Invalid filename or unsupported characters.",
       "filename_too_long_windows": "Name or path is too long. (Windows)",
       "filename_too_long_linux": "Name or path exceeds the byte limit. (Linux)"
     }
