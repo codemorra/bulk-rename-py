@@ -1,280 +1,259 @@
 # Bulk Rename Py
 
-**Bulk Rename Py** is a Python application for **renaming files in bulk**.
+Bulk Rename Py is a Python desktop application for renaming files in bulk.
+Combine filename patterns, search and replace, counters, and date/time placeholders,
+review the resulting names in a preview, and apply the changes together.
+An undo function helps restore previous names during the current session.
 
-It provides a wide range of features for conveniently renaming large numbers of files, including instant previews, an undo function, and support for freely combinable naming patterns.
+![Bulk Rename Py main window with filename patterns and rename preview](assets/screenshots/mainwindow.png)
 
-![Screenshot of Bulk Rename Py main window](assets/screenshots/mainwindow.png)
+## Features
 
----
+- Independent editing of filenames and extensions
+- Combinable placeholders, character ranges, counters, and date/time formats
+- Search and replace with wildcards, regular expressions, and case options
+- Duplicate detection, filename validation, and Windows-compatible names
+- File and folder import, hidden-file options, and drag and drop
+- Preview editing through an external text editor
+- Rename and undo with recovery information after failures
+- German and English interface
 
-## Table of Contents
+## How it works
 
-- [Technical Requirements](#technical-requirements)
-- [Installation](#installation)
-- [Updates](#updates)
-- [Function Overview](#function-overview)
-- [Usage & Features](#usage--features)
-- [Behavior & Notes](#behavior--notes)
-- [License](#license)
+Add files or folders and configure the naming options. The table shows current
+filenames on the left and proposed names on the right. Review the preview and
+resolve validation errors, then confirm the rename operation.
 
----
+Use the external editor to adjust individual proposed names. Save the edited
+list, return to the application, and confirm loading it into the preview.
+The imported names go through the same validation as generated names.
 
-## Technical Requirements
+Undo is available during the current session. Changing or clearing the file list
+resets the undo history, as does closing the application.
 
-<a name="technical-requirements"></a>
+## Technology
 
-### Manual installation
+The application uses Python 3.14 or newer and Qt Widgets through PySide6 Essentials.
+Requests and certifi support checking GitHub releases from the About dialog.
+Dependencies are listed in [requirements.txt](requirements.txt).
 
-- **Python:** **>= 3.14**
-- **Dependencies:** see [`requirements.txt`](requirements.txt)
+The current optimization work has been tested on Linux (Arch Linux). Manual
+verification of this revision on Windows 11 remains open.
 
-### Operating systems
+## Getting started
 
-- Linux (tested on Arch Linux)
-- Windows (tested on Windows 11)
+Install Python 3.14 or newer and Git, then clone the repository:
 
----
+```bash
+git clone https://github.com/codemorra/bulk-rename-py.git
+cd bulk-rename-py
+```
 
-## Installation
-
-<a name="installation"></a>
+Run the application from this source checkout using the instructions for your
+operating system.
 
 ### Linux
 
-1. Clone the repository:
+Create a virtual environment and install the dependencies:
 
-   ```bash
-   git clone https://github.com/codemorra/bulk-rename-py.git
-   cd bulk-rename-py
-   ```
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+```
 
-2. Set up the virtual environment:
+Start the application:
 
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   ```
+```bash
+chmod +x start_linux.sh
+./start_linux.sh
+```
 
-3. Run the application:
-   ```bash
-   chmod +x start_linux.sh
-   ./start_linux.sh
-   ```
+The launcher uses the repository's `.venv` interpreter. Later starts can use the
+same launcher directly.
 
-#### Optional: Create a Desktop Shortcut (desktop environments with .desktop files)
+#### Optional: Add a start menu entry with icons
 
-1. Copy the provided `.desktop` file from the repository to the appropriate directory:
+Run these commands from the repository root on a desktop supporting `.desktop`
+files. Install the desktop entry:
 
-   ```bash
-   install -Dm644 packaging/linux/bulk-rename-py.desktop ~/.local/share/applications/bulk-rename-py.desktop
-   ```
+```bash
+install -Dm644 packaging/linux/bulk-rename-py.desktop ~/.local/share/applications/bulk-rename-py.desktop
+```
 
-2. Copy the icon files to the corresponding hicolor directories:
+Install the icons in the corresponding hicolor directories:
 
-   ```bash
-   for s in 16 32 64 128 256 512; do
-       install -Dm644 assets/icons/png/bulk-rename-py_${s}.png ~/.local/share/icons/hicolor/${s}x${s}/apps/bulk-rename-py.png
-   done
-   ```
+```bash
+for s in 16 32 64 128 256 512; do
+    install -Dm644 assets/icons/png/bulk-rename-py_${s}.png ~/.local/share/icons/hicolor/${s}x${s}/apps/bulk-rename-py.png
+done
+```
 
-3. Open the copied file (`~/.local/share/applications/bulk-rename-py.desktop`) and adjust **Exec** and **TryExec** to your local installation path, for example:
+Open `~/.local/share/applications/bulk-rename-py.desktop` and set **Exec** and
+**TryExec** to the absolute paths of your local installation. Replace
+`<PATH_TO_REPOSITORY>` in this example:
 
-   ```ini
-   Exec="<PATH_TO_REPOSITORY>/.venv/bin/python" "<PATH_TO_REPOSITORY>/src/main.py"
-   TryExec=<PATH_TO_REPOSITORY>/.venv/bin/python
-   ```
+```ini
+Exec="<PATH_TO_REPOSITORY>/.venv/bin/python" "<PATH_TO_REPOSITORY>/src/main.py"
+TryExec=<PATH_TO_REPOSITORY>/.venv/bin/python
+```
 
-4. Make the file executable:
+Make the desktop file executable:
 
-   ```bash
-   chmod +x ~/.local/share/applications/bulk-rename-py.desktop
-   ```
+```bash
+chmod +x ~/.local/share/applications/bulk-rename-py.desktop
+```
 
-   The application should now appear in the application menu.
+The application should now appear in the start menu with its icon.
 
 ### Windows
 
-1. Clone the repository:
+In Command Prompt, create a virtual environment and install the dependencies:
 
-   ```bash
-   git clone https://github.com/codemorra/bulk-rename-py.git
-   cd bulk-rename-py
-   ```
+```bat
+py -3.14 -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
 
-2. Set up the virtual environment (once):
+Start the application from the project directory:
 
-   ```bash
-   python -m venv .venv
-   .venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
+```bat
+start_windows.bat
+```
 
-3. Run the application:
-   ```bash
-   start_windows.bat
-   ```
+The launcher uses the repository's `.venv` interpreter. You can also double-click
+`start_windows.bat` in File Explorer.
 
-#### Optional: Create a Desktop Shortcut
+#### Optional: Create a desktop shortcut
 
-1. Right-click on the desktop → New → Shortcut
-   - Target:
-     ```
-     "<PATH_TO_REPOSITORY>\.venv\Scripts\pythonw.exe" "<PATH_TO_REPOSITORY>\src\main.py"
-     ```
+Right-click the desktop and choose **New → Shortcut**. Set the target to:
 
-2. Right-click the shortcut → Properties → Change Icon...
-   - Select icon:
-     ```
-     <PATH_TO_REPOSITORY>\assets\icons\bulk-rename-py.ico
-     ```
+```text
+"<PATH_TO_REPOSITORY>\.venv\Scripts\pythonw.exe" "<PATH_TO_REPOSITORY>\src\main.py"
+```
 
----
+Open the shortcut's **Properties → Change Icon** and select:
+
+```text
+<PATH_TO_REPOSITORY>\assets\icons\bulk-rename-py.ico
+```
+
+## Naming options
+
+### Placeholders
+
+Use placeholders in filename and extension patterns:
+
+| Placeholder | Meaning                                                        |
+| ----------- | -------------------------------------------------------------- |
+| `{name}`    | Current filename without the extension                         |
+| `{name1-3}` | Characters 1 through 3 of the current filename                 |
+| `{name4-*}` | Current filename from character 4 to the end                   |
+| `{ext}`     | Current extension                                              |
+| `{ext1-2}`  | Characters 1 through 2 of the extension                        |
+| `{counter}` | Counter using the configured start, increment, and digit width |
+| `{date}`    | Date using the configured source and format                    |
+| `{time}`    | Time using the configured source and format                    |
+
+Ranges use positions starting at 1. Both name and extension ranges support `*`
+for the beginning or end, for example `{name*-5}` and `{ext1-*}`.
+
+Custom date patterns include `{yyyy-mm-dd}`, `{dd.mm.yyyy}`, `{yyyy dd mm}`,
+`{mm;dd;yyyy}`, `{yyyy_mm}`, `{mm:yyyy}`, and `{yyyy}`. Time examples include
+`{hh-mm-ss}`, `{hh.mm}`, and `{hhmmss}`. Supported separators are `-`, `_`, `.`,
+`:`, `;`, a space, or none. Windows-compatible naming replaces invalid characters
+such as `:` with `_`.
+
+### Search and replace
+
+Wildcard search supports these patterns:
+
+| Pattern | Meaning                          |
+| ------- | -------------------------------- |
+| `*`     | Match as little text as possible |
+| `**`    | Match as much text as possible   |
+| `?`     | Match one character              |
+
+Options include regular expressions, case sensitivity, whole-word matching,
+replacing only the first match, and excluding extensions.
+
+### Counters and case
+
+Configure the counter's start value, increment, and digit width. Duplicate-only
+numbering applies counters to names that would otherwise collide.
+
+Case transformations apply to filenames and offer lowercase, uppercase, heading
+case, and mocking case. Extensions have their own naming pattern.
+
+## Behavior and local settings
+
+Windows-compatible naming is always enabled on Windows and optional on Linux.
+It replaces invalid characters and handles reserved names such as `CON`, `PRN`,
+and `NUL`. Validation checks filename length in Windows UTF-16 code units and
+Linux UTF-8 bytes.
+
+On Windows, add `.lnk` directory shortcuts through **Add folder**; **Add file(s)**
+opens their target directory instead.
+
+Settings are stored in `config.ini` under these locations:
+
+| Platform | Location                                                                  |
+| -------- | ------------------------------------------------------------------------- |
+| Linux    | `$XDG_CONFIG_HOME/BulkRenamePy/`, defaulting to `~/.config/BulkRenamePy/` |
+| Windows  | `%APPDATA%\BulkRenamePy\`                                                 |
+
+Keep a backup of important files before renaming. File permissions, filesystem
+changes, and other applications can affect a rename or its recovery. The developer
+assumes no responsibility for data loss.
 
 ## Updates
 
-<a name="updates"></a>
+Check for new GitHub releases in the About dialog. To update a Git checkout,
+close the application and run `git pull` from the project directory. Then update
+the dependencies using the project interpreter.
 
-You can check for available updates in the About dialog. If an update is available, it will be indicated next to the version number.
-
-For manual installations, updates can be applied as follows:
+Linux:
 
 ```bash
-git pull
-pip install -r requirements.txt --upgrade
+.venv/bin/python -m pip install -r requirements.txt --upgrade
 ```
 
----
+Windows Command Prompt:
 
-## Function Overview
+```bat
+.venv\Scripts\python.exe -m pip install -r requirements.txt --upgrade
+```
 
-<a name="function-overview"></a>
+## Maintenance and quality checks
 
-- **Filename & Extension Editing:** Independent editing of names and extensions
-- **Flexible Replacement:** Replace entire names or selected parts
-- **Preview Workflow:** See changes before applying them
-- **Undo Functionality:** Revert changes if needed
-- **Search & Replace:** With wildcards, regex, and advanced options
-- **Automatic Counter:** Configurable numbering with duplicates handling
-- **Date/Time Placeholders:** Predefined and custom formats
-- **Case Transformation:** Uppercase, lowercase, heading, and mocking case
-- **Windows Compatibility:** Automatic sanitization of filenames
-- **External Editor:** Manual adjustments in text editor
-- **Validation:** Duplicate detection and filename length checks
-- Preview-based workflow:
-  - Current filenames are shown on the left
-  - New filenames are shown on the right
-  - Changes are applied only after confirmation
+The project has undergone an AI-assisted review and refactoring focused on:
 
----
+- Safer rename and undo operations, including conflict handling and recovery paths
+- Consistent validation for generated and externally edited names
+- Reuse of prepared search patterns, timestamps, and file metadata during previews
+- More reliable table actions, import cancellation, and external editor handling
+- Atomic configuration writes, simpler modules, and fewer runtime dependencies
+- Regression tests for file operations, naming rules, settings, and GUI workflows
 
-## Usage & Features
+With the virtual environment active, install the development dependencies and run
+checks from the repository root:
 
-<a name="usage--features"></a>
+```bash
+python -m pip install -r tests/requirements.txt
+python -m pytest
+python -m ruff check src tests
+```
 
-### Filename & Extension Editing
+See [the test documentation](tests/README.md) for individual checks and coverage.
+After changing the application icon, regenerate the compiled Qt resource on Linux:
 
-#### **Basic Placeholders**
-
-- `{name}`, `{nameX-Y}`: Current filename (full or sliced)
-- `{ext}`, `{extX-Y}`: File extension (full or sliced)
-- `{counter}`: Auto-incrementing counter
-- `{date}`: Configurable date format (YYYYMMDD, DDMMYYYY, etc.)
-- `{time}`: Configurable time format (HHMMSS, HHMM, etc.)
-
-**Custom Patterns (manual entry):**
-
-- Dates: `{yyyy-mm-dd}`, `{dd.mm.yyyy}`, `{yyyy dd mm}`, `{mm;dd;yyyy}`, `{yyyy_mm},`, `{mm:yyyy}`, `{yyyy}`
-- Times: `{hh-mm-ss}`, `{hh.mm}`, `{hhmmss}`
-- Separators: `-`, `_`, `.`, `:`, `;`, ` ` (space), or none
-  - _Note: On Windows, `:` separators are automatically replaced with `_`\_
-
-### **Search & Replace**
-
-- **Wildcards:**
-  - `*` = everything between first and next occurrence
-  - `**` = everything between first and last occurrence
-  - `?` = single character
-- **Options:**
-  - Regex mode
-  - Case sensitivity
-  - Exact matching
-  - Replace first match only
-  - Exclude extensions
-
-### **Counter**
-
-- Start value, increment, and digit width configurable
-- Option to number only duplicates
-
-### **Case Transformation**
-
-- Lowercase, uppercase, heading case, or mocking case
-- Applies to filenames (extensions remain unchanged)
-
-### **Windows Compatibility**
-
-- Removes/replaces invalid characters: `<>:"\|?*`
-- Prevents reserved names: `CON`, `PRN`, `AUX`, `NUL`, etc.
-- Always enabled on Windows, optional on Linux
-
-### **Advanced Features**
-
-- **External Editor:** Edit preview list in text editor
-- **Validation:** Checks for duplicates and invalid filenames
-- **Undo History:** Revert changes until file list is modified
-
----
-
-### Additional features
-
-- Import individual files or entire directories
-- Option to include hidden files
-- Drag & drop support from the file manager
-- Detection of duplicate or invalid target filenames
-- Undo functionality
-- Available languages: German and English
-
----
-
-## Behavior & Notes
-
-<a name="behavior--notes"></a>
-
-- **Filename length checks:** automatic validation for maximum filename length (Windows) and byte length (Linux)
-- **Windows-compatible naming:** always enabled on Windows, optional on Linux
-- **.lnk directory shortcuts (Windows):** can only be added via _Add folder_; using _Add file(s)_ opens the target directory instead
-- **External editor workflow:** changes are applied only after saving the edited file
-- **Undo function:** the undo history is cleared if the file list is modified, cleared, or if the application is closed
-
----
-
-## :warning: Important Safety Notice :warning:
-
-### Always create a backup before renaming files!
-
-While the application does not overwrite files automatically, unexpected issues (e.g. special characters or file permission problems) may still occur.
-
-**The developer assumes no responsibility for data loss.**
-
----
+```bash
+./scripts/rebuild_icons.sh
+```
 
 ## License
 
-<a name="license"></a>
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-This project is licensed under the **MIT License**.  
-See [`LICENSE`](LICENSE) for the full license text.
-
-Third-party libraries used by this project are licensed under their respective licenses.  
-The dependency overview and links to upstream license texts are listed in
-[`THIRD_PARTY_LICENSES.txt`](THIRD_PARTY_LICENSES.txt).
-
----
-
-## Developer & Project Page
-
-**Developer:** Codemorra (Christopher Kranz)  
-**Project Page:** [https://github.com/codemorra/bulk-rename-py](https://github.com/codemorra/bulk-rename-py)  
-© 2026-present Codemorra – All rights reserved.
+The [dependency overview](THIRD_PARTY_LICENSES.txt) lists third-party licenses
+and links to their upstream texts.
