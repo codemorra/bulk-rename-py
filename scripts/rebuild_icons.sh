@@ -10,13 +10,23 @@
 set -e
 
 ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
+PYTHON_BIN="$ROOT_DIR/.venv/bin/python"
 QRC_DIR="$ROOT_DIR/src/resources"
 QRC_FILE="$QRC_DIR/icons.qrc"
 OUT_FILE="$QRC_DIR/icons_rc.py"
 
-# Check whether tool is available
-if ! command -v pyside6-rcc &> /dev/null; then
-    echo "Error: pyside6-rcc not found. Install with: pip install PySide6"
+# Use the project interpreter, or the active Python environment
+if [[ ! -x "$PYTHON_BIN" ]]; then
+    PYTHON_BIN="python3"
+fi
+
+# Locate the compiler shipped with PySide6 Essentials
+if ! RCC_BIN=$("$PYTHON_BIN" -c 'from pathlib import Path; from PySide6 import QtCore; print(Path(QtCore.__file__).parent / "Qt" / "libexec" / "rcc")'); then
+    echo "Error: Could not locate the Qt resource compiler. Install the project requirements."
+    exit 1
+fi
+if [[ ! -x "$RCC_BIN" ]]; then
+    echo "Error: Qt resource compiler not found at $RCC_BIN"
     exit 1
 fi
 
@@ -28,8 +38,6 @@ fi
 
 echo "Rebuilding icons_rc.py ..."
 
-pushd "$QRC_DIR" > /dev/null
-pyside6-rcc icons.qrc -o "$OUT_FILE"
-popd > /dev/null
+"$RCC_BIN" -g python "$QRC_FILE" -o "$OUT_FILE"
 
 echo "Done: $(realpath "$OUT_FILE")"
