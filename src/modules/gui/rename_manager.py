@@ -28,8 +28,6 @@ from ..core.types import (
 from ..core.validation import Validator
 from ..importer import Importer, ImportOptions
 from ..settings import reset_config, set_cfg
-from .gui_helpers import GUIHelpers
-from .table_manager import TableManager
 
 # Constants
 TEMP_FILE_SUFFIX = '.txt'
@@ -56,8 +54,8 @@ class RenameManager:
             `None`
         """
         self.main_window = main_window
-        self.helpers = GUIHelpers(main_window)
-        self.table_manager = TableManager(main_window)
+        self.helpers = main_window.helpers
+        self.table_manager = main_window.table_manager
 
     def collect_cfg(self) -> RenameCfg:
         """Collect rename configuration from UI controls.
@@ -751,7 +749,13 @@ class RenameManager:
             `None`
         """
         # Save configuration and update preview
-        set_cfg(section, key, value)
+        try:
+            self.main_window.cfg = set_cfg(section, key, value)
+        except RuntimeError as e:
+            QMessageBox.warning(
+                self.main_window, self.helpers.tr('messages.warning'),
+                self.helpers.tr('messages.errors.settings_save_failed') + '\n\n' + str(e)
+            )
         self.table_manager.update_preview_later()
 
     def reset_all_settings(self) -> None:
@@ -820,8 +824,7 @@ class RenameManager:
 
         # Collect before clearing so read failures preserve the existing list and history
         try:
-            items = Importer.collect(paths, opts)
-            files = [item.path for item in items if not item.is_dir]
+            files = Importer.collect(paths, opts)
             files.sort(key=lambda p: (
                 [int(t) if t.isdecimal() else t.lower() for t in re.split(r'(\d+)', p.name)],
                 str(p)

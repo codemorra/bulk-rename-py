@@ -130,6 +130,8 @@
       "no_undo": "No undo operation available."
     },
     "errors": {
+      "settings_save_failed": "The changed setting could not be saved:",
+      "url_open_failed": "The link could not be opened:\n\n{0}",
       "import_failed": "The files could not be imported. The current list has been kept:",
       "temp_file_failed": "The temporary preview file could not be created.",
       "open_editor_failed": "The system could not open the preview file in an editor.",

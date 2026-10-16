@@ -130,6 +130,8 @@
       "no_undo": "Es ist kein Undo-Vorgang verfügbar."
     },
     "errors": {
+      "settings_save_failed": "Die geänderte Einstellung konnte nicht gespeichert werden:",
+      "url_open_failed": "Der Link konnte nicht geöffnet werden:\n\n{0}",
       "import_failed": "Die Dateien konnten nicht importiert werden. Die aktuelle Liste wurde beibehalten:",
       "temp_file_failed": "Die temporäre Vorschaudatei konnte nicht erstellt werden.",
       "open_editor_failed": "Das System konnte die Vorschaudatei nicht in einem Editor öffnen.",

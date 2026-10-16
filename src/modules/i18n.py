@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-
-# Bulk Rename Py
-# © 2026–present Codemorra (Christopher Kranz)
-# Licensed under the MIT License (see LICENSE file)
-
 """Internationalization (i18n) module for Bulk Rename Py.
 
 Provides translation functionality using JSON language files.
@@ -11,9 +5,9 @@ Supports nested translation keys with dot notation.
 """
 
 from __future__ import annotations
+
 import json
 from pathlib import Path
-
 
 # Path to directory containing language JSON files
 LOCALE_DIR = Path(__file__).parent.parent / 'locale'
@@ -76,10 +70,9 @@ class Translator:
 
         # Traverse nested keys using dot notation
         for part in key.split('.'):
-            if isinstance(data, dict):
-                data = data.get(part, f'[{part}]')
-            else:
+            if not isinstance(data, dict) or part not in data:
                 return f'[{key}]'
+            data = data[part]
 
         # Ensure final value is a string
         if isinstance(data, str):
@@ -95,5 +88,6 @@ class Translator:
         **Returns:**
             `None`
         """
+        language = self._load_language(lang_code)
         self.lang_code = lang_code
-        self.lang = self._load_language(lang_code)
+        self.lang = language

@@ -372,7 +372,6 @@ def test_main_window_rename_undo_and_clear(qt_application, tmp_path, monkeypatch
     config_dir = tmp_path / 'config'
     monkeypatch.setattr(settings, 'CONFIG_DIR', config_dir)
     monkeypatch.setattr(settings, 'CONFIG_FILE', config_dir / 'config.ini')
-    monkeypatch.setattr(main_window, 'CONFIG_FILE', config_dir / 'config.ini')
     monkeypatch.setattr(QMessageBox, 'information', lambda *args: None)
 
     def unexpected_error(*args):

@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 #
-# Bulk Rename Py
-# © 2026–present Codemorra (Christopher Kranz)
-# Licensed under the MIT License (see LICENSE file)
-#
 # Rebuilds the compiled Qt resource file (icons_rc.py)
 # from the icons.qrc definition.
 #
@@ -16,7 +12,7 @@ set -e
 ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
 QRC_DIR="$ROOT_DIR/src/resources"
 QRC_FILE="$QRC_DIR/icons.qrc"
-OUT_FILE="$ROOT_DIR/src/modules/icons_rc.py"
+OUT_FILE="$QRC_DIR/icons_rc.py"
 
 # Check whether tool is available
 if ! command -v pyside6-rcc &> /dev/null; then

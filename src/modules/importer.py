@@ -1,20 +1,16 @@
-# -*- coding: utf-8 -*-
-
-# Bulk Rename Py
-# © 2026–present Codemorra (Christopher Kranz)
-# Licensed under the MIT License (see LICENSE file)
-
 """File import module for Bulk Rename Py.
 
 Provides functionality for collecting files from specified paths
 with configurable import options and duplicate handling.
 """
 
-import ctypes
 import os
+import stat
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator
+
+from .core.validation import Validator
 
 
 @dataclass(frozen=True)
@@ -23,26 +19,12 @@ class ImportOptions:
 
     Attributes:
         allow_files: Whether regular files may be imported
-        allow_dirs: Whether directories may be imported
+        allow_dirs: Whether selected directories may be scanned for files
         include_hidden: Whether hidden files/folders are included
     """
     allow_files: bool
     allow_dirs: bool
     include_hidden: bool
-
-
-@dataclass(frozen=True)
-class ImportItem:
-    """Represents an imported file or directory.
-
-    Attributes:
-        path: Full path to the object
-        is_dir: True if it is a directory
-        mtime: Modification time in seconds since epoch, None on error
-    """
-    path: Path
-    is_dir: bool
-    mtime: float | None
 
 
 class Importer:
@@ -53,7 +35,7 @@ class Importer:
     """
 
     @staticmethod
-    def collect(paths: list[str | Path], opts: ImportOptions) -> list[ImportItem]:
+    def collect(paths: list[str | Path], opts: ImportOptions) -> list[Path]:
         """Collect files from specified paths.
 
         Searches the specified paths (either individual files or all files
@@ -65,62 +47,43 @@ class Importer:
             `opts` (ImportOptions): Import settings
 
         **Returns:**
-            `list[ImportItem]`: List of imported file items
+            `list[Path]`: Absolute file paths without duplicate directory entries
         """
-        items: list[ImportItem] = []
-        seen: set[str] = set()
+        items = []
+        seen = set()
+        if not opts.allow_files:
+            return items
 
         for raw in paths:
-            p = Path(raw)
-            if not p.exists():
+            path = Path(raw).absolute()
+            if path.is_file():
+                candidates = [path]
+            elif opts.allow_dirs and path.is_dir():
+                candidates = Importer._iter_files(path)
+            else:
                 continue
-
-            # Import single file
-            if p.is_file():
-                if opts.allow_files and (opts.include_hidden or not Importer._is_hidden(p)):
-                    if (sp := str(p)) not in seen:
-                        seen.add(sp)
-                        items.append(ImportItem(p, False, Importer._mtime(p)))
-
-            # Import directory contents
-            elif p.is_dir() and opts.allow_files:
-                for f in Importer._iter_files(p, opts.include_hidden):
-                    sp = str(f)
-                    if sp not in seen:
-                        seen.add(sp)
-                        items.append(ImportItem(f, False, Importer._mtime(f)))
-
+            for candidate in candidates:
+                if not opts.include_hidden and Importer._is_hidden(candidate):
+                    continue
+                key = Validator.path_key(candidate)
+                if key not in seen:
+                    seen.add(key)
+                    items.append(candidate)
         return items
 
     @staticmethod
-    def _iter_files(root: Path, include_hidden: bool) -> Iterator[Path]:
+    def _iter_files(root: Path) -> Iterator[Path]:
         """Iterate over files in directory.
 
         **Parameters:**
             `root` (Path): Starting directory
-            `include_hidden` (bool): Whether hidden files are included
 
         **Returns:**
             `Iterator[Path]`: Iterator over found files
         """
         for entry in root.iterdir():
-            if entry.is_file() and (include_hidden or not Importer._is_hidden(entry)):
+            if entry.is_file():
                 yield entry
-
-    @staticmethod
-    def _mtime(p: Path) -> float | None:
-        """Get file modification time.
-
-        **Parameters:**
-            `p` (Path): Path to the object
-
-        **Returns:**
-            `float | None`: Modification time in seconds since epoch
-        """
-        try:
-            return p.stat().st_mtime
-        except Exception:
-            return None
 
     @staticmethod
     def _is_hidden(p: Path) -> bool:
@@ -135,9 +98,9 @@ class Importer:
         if os.name == 'nt':
             # Windows: check file attributes (ignore dot prefix)
             try:
-                attrs = ctypes.windll.kernel32.GetFileAttributesW(str(p))
-                return attrs != -1 and bool(attrs & (0x2 | 0x4))  # HIDDEN | SYSTEM
-            except Exception:
+                attrs = p.stat(follow_symlinks=False).st_file_attributes
+                return bool(attrs & (stat.FILE_ATTRIBUTE_HIDDEN | stat.FILE_ATTRIBUTE_SYSTEM))
+            except OSError:
                 return False
         else:
             # Unix-like: leading dot means hidden

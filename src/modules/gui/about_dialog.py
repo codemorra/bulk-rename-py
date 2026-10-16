@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-
-# Bulk Rename Py
-# © 2026–present Codemorra (Christopher Kranz)
-# Licensed under the MIT License (see LICENSE file)
-
 """About dialog module for Bulk Rename Py.
 
 Handles display of application information, version details, license text,
@@ -11,12 +5,23 @@ and update checking functionality for the about dialog.
 """
 
 from __future__ import annotations
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPlainTextEdit, QDialogButtonBox, QStyle, QMessageBox
-from PySide6.QtGui import QFontDatabase, QFont
-from PySide6.QtCore import Qt
+
 import webbrowser
-from .gui_helpers import GUIHelpers
-from ..metadata import APP_INFO
+
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont, QFontDatabase
+from PySide6.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
+    QHBoxLayout,
+    QLabel,
+    QMessageBox,
+    QPlainTextEdit,
+    QStyle,
+    QVBoxLayout,
+)
+
+from ..metadata import APP_INFO, get_license_text
 from ..update_checker import UpdateChecker
 
 # Constants
@@ -41,7 +46,7 @@ class AboutDialog:
             `None`
         """
         self.main_window = main_window
-        self.helpers = GUIHelpers(main_window)
+        self.helpers = main_window.helpers
 
     def show_about_dialog(self) -> None:
         """Display the About dialog with application information.
@@ -120,7 +125,7 @@ class AboutDialog:
                 else:
                     # Open external URLs in default browser
                     webbrowser.open(url)
-            except Exception as e:
+            except (OSError, RuntimeError, webbrowser.Error) as e:
                 # Show warning on error
                 QMessageBox.warning(
                     dlg,
@@ -174,7 +179,7 @@ class AboutDialog:
             `None`
         """
         # Get combined license text from metadata
-        license_text = APP_INFO.get("license_text")
+        license_text = get_license_text()
 
         # Create license dialog
         dlg = QDialog(parent or self.main_window)

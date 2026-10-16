@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-
-# Bulk Rename Py
-# © 2026–present Codemorra (Christopher Kranz)
-# Licensed under the MIT License (see LICENSE file)
-
 """Update checker module for Bulk Rename Py.
 
 Provides functionality to check for new releases on GitHub.
@@ -11,11 +5,13 @@ Runs asynchronously to avoid blocking the GUI.
 """
 
 from __future__ import annotations
-import os
-import threading
+
 import platform
-import requests
+import re
+import threading
+
 import certifi
+import requests
 from PySide6.QtCore import QObject, Signal
 
 
@@ -31,20 +27,17 @@ def _version_tuple(v: str) -> tuple[int, ...]:
     **Returns:**
         `tuple[int, ...]`: Numeric version tuple
 
+    **Raises:**
+        `ValueError`: If the release tag is not a numeric version
+
     **Example:**
         'v1.2.3' → (1, 2, 3)
     """
-    # Remove leading 'v' or 'V' and surrounding whitespace
-    v = v.strip().lstrip('vV')
-    parts = []
-
-    # Split by dots and extract numeric components only
-    for p in v.split('.'):
-        d = ''.join(ch for ch in p if ch.isdigit())
-        parts.append(int(d or '0'))
-
-    # Return tuple for lexicographical version comparison
-    return tuple(parts) if parts else (0,)
+    value = v.strip()
+    if not re.fullmatch(r'[vV]?[0-9]+(?:\.[0-9]+){0,2}', value):
+        raise ValueError(f"Unsupported release version: {v!r}")
+    parts = tuple(int(part) for part in value.lstrip('vV').split('.'))
+    return parts + (0,) * (3 - len(parts))
 
 
 class UpdateChecker(QObject):
@@ -93,18 +86,22 @@ class UpdateChecker(QObject):
 
         try:
             # Request latest release information
-            r = requests.get(
+            with requests.get(
                 api,
                 headers={'User-Agent': ua, 'Accept': 'application/vnd.github+json'},
                 timeout=7.0,
                 verify=certifi.where(),
-            )
-            r.raise_for_status()
-            data = r.json()
+            ) as response:
+                response.raise_for_status()
+                data = response.json()
 
             # Extract latest tag and release URL
-            tag = (data.get('tag_name') or '').strip()
-            url = data.get('html_url') or releases_url
+            if not isinstance(data, dict) or not isinstance(data.get('tag_name'), str):
+                raise TypeError('Release response must contain a version tag')
+            tag = data['tag_name']
+            url = data.get('html_url')
+            if not isinstance(url, str) or not url:
+                url = releases_url
 
             # Compare version numbers
             if _version_tuple(tag) > _version_tuple(self.current_version):
@@ -115,6 +112,6 @@ class UpdateChecker(QObject):
             # Emit success result
             self.finished.emit(status, url)
 
-        except Exception:
-            # Emit failure result on any error
+        except (requests.RequestException, ValueError, TypeError):
+            # Emit failure for network errors and malformed release data
             self.finished.emit('failed', releases_url)

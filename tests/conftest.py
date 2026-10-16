@@ -1,12 +1,7 @@
 """Pytest configuration and fixtures for Bulk Rename Py tests."""
 
-import os
-import sys
 
 import pytest
-
-# Add src to Python path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 
 @pytest.fixture
@@ -138,6 +133,7 @@ def manager_factory(qt_application, monkeypatch, basic_rename_config):
     )
 
     from modules.gui.rename_manager import RenameManager
+    from modules.gui.table_manager import TableManager
 
     messages = []
     windows = []
@@ -160,15 +156,15 @@ def manager_factory(qt_application, monkeypatch, basic_rename_config):
             window.table.setItem(row, 0, item)
             window.table.setItem(row, 1, QTableWidgetItem(dst.name))
 
-        manager = RenameManager(window)
-        window.rename_manager = manager
-        window._update_timer.timeout.connect(manager.update_preview_now)
-        manager.helpers = SimpleNamespace(
+        window.helpers = SimpleNamespace(
             tr=lambda key: key, question_box=lambda *args: True,
             reset_text_fields=lambda: None, is_windows=lambda: False
         )
+        window.table_manager = TableManager(window)
+        manager = RenameManager(window)
+        window.rename_manager = manager
+        window._update_timer.timeout.connect(manager.update_preview_now)
         manager.collect_cfg = lambda: basic_rename_config
-        manager.table_manager.helpers = manager.helpers
         manager.table_manager.update_preview_later = lambda: None
         # Isolate execution state from the filename validation covered separately
         manager.precheck_rename_block_on_overlength = lambda: True

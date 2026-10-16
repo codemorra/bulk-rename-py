@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 
-# Check if .venv exists
-if [ ! -d ".venv" ]; then
+PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PYTHON_BIN="$PROJECT_DIR/.venv/bin/python"
+
+# Check if the project interpreter exists
+if [ ! -x "$PYTHON_BIN" ]; then
     echo "Error: Virtual environment not found. Please create it manually with:"
     echo "  python -m venv .venv"
     echo "  source .venv/bin/activate"
@@ -9,8 +12,5 @@ if [ ! -d ".venv" ]; then
     exit 1
 fi
 
-# Activate virtual environment
-source .venv/bin/activate
-
 # Start the application
-python src/main.py
+exec "$PYTHON_BIN" "$PROJECT_DIR/src/main.py" "$@"
