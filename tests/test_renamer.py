@@ -1,10 +1,18 @@
-# -*- coding: utf-8 -*-
 """Tests for the Renamer class (modules/core/renamer.py)."""
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from modules.core.renamer import Renamer
-from modules.core.types import RenameCfg, DateTimeCfg, CounterCfg, MaskCfg, CaseCfg, ReplaceCfg
+from modules.core.types import (
+    CaseCfg,
+    CounterCfg,
+    DateTimeCfg,
+    MaskCfg,
+    RenameCfg,
+    ReplaceCfg,
+)
 
 
 class TestRenamer:

@@ -1,11 +1,19 @@
-# -*- coding: utf-8 -*-
 """Integration tests for complete rename workflows."""
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from modules.core.renamer import Renamer
+from modules.core.types import (
+    CaseCfg,
+    CounterCfg,
+    DateTimeCfg,
+    MaskCfg,
+    RenameCfg,
+    ReplaceCfg,
+)
 from modules.core.validation import Validator
-from modules.core.types import RenameCfg, DateTimeCfg, CounterCfg, MaskCfg, CaseCfg, ReplaceCfg
 
 
 class TestIntegration:

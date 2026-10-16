@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 """Pytest configuration and fixtures for Bulk Rename Py tests."""
 
-import pytest
-from pathlib import Path
-import sys
 import os
+import sys
+from pathlib import Path
+
+import pytest
 
 # Add src to Python path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -63,7 +63,14 @@ def special_char_files(tmp_test_dir):
 @pytest.fixture
 def basic_rename_config():
     """Create a basic rename configuration."""
-    from modules.core.types import RenameCfg, DateTimeCfg, CounterCfg, MaskCfg, CaseCfg, ReplaceCfg
+    from modules.core.types import (
+        CaseCfg,
+        CounterCfg,
+        DateTimeCfg,
+        MaskCfg,
+        RenameCfg,
+        ReplaceCfg,
+    )
     
     return RenameCfg(
         mask=MaskCfg(name_mask="{name}_{counter}", ext_mask="{ext}"),
@@ -83,7 +90,14 @@ def basic_rename_config():
 @pytest.fixture
 def duplicate_config():
     """Create configuration for duplicate handling tests."""
-    from modules.core.types import RenameCfg, DateTimeCfg, CounterCfg, MaskCfg, CaseCfg, ReplaceCfg
+    from modules.core.types import (
+        CaseCfg,
+        CounterCfg,
+        DateTimeCfg,
+        MaskCfg,
+        RenameCfg,
+        ReplaceCfg,
+    )
     
     return RenameCfg(
         mask=MaskCfg(name_mask="file", ext_mask="{ext}"),

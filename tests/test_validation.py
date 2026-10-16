@@ -1,8 +1,9 @@
-# -*- coding: utf-8 -*-
 """Tests for the Validator class (modules/core/validation.py)."""
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from modules.core.validation import Validator
 
 
