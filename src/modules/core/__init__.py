@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-
-# Bulk Rename Py
-# © 2026–present Codemorra (Christopher Kranz)
-# Licensed under the MIT License (see LICENSE file)
-
 """Core module for Bulk Rename Py.
 
 Contains the main logic for file renaming operations including:
@@ -13,18 +7,30 @@ Contains the main logic for file renaming operations including:
 - Filename validation (Validator class)
 """
 
-from .types import (
-    DateTimeCfg, CounterCfg, ReplaceCfg, CaseCfg, MaskCfg, RenameCfg
-)
 from .renamer import Renamer
 from .tokens import TokenProcessor
+from .types import (
+    CaseCfg,
+    CounterCfg,
+    DateTimeCfg,
+    MaskCfg,
+    RenameCfg,
+    RenameResult,
+    ReplaceCfg,
+)
 from .validation import Validator
 
 __all__ = [
+    'CaseCfg',
+    'CounterCfg',
     # Configuration types
-    'DateTimeCfg', 'CounterCfg', 'ReplaceCfg', 'CaseCfg', 'MaskCfg', 'RenameCfg',
+    'DateTimeCfg',
+    'MaskCfg',
+    'RenameCfg',
+    'RenameResult',
     # Core renaming operations
     'Renamer',
+    'ReplaceCfg',
     # Token processing and mask application
     'TokenProcessor',
     # Filename validation

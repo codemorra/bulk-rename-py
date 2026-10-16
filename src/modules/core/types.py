@@ -1,16 +1,25 @@
-# -*- coding: utf-8 -*-
+"""Dataclasses for renaming configuration and operation results.
 
-# Bulk Rename Py
-# © 2026–present Codemorra (Christopher Kranz)
-# Licensed under the MIT License (see LICENSE file)
-
-"""Dataclasses for renaming configuration.
-
-This module defines the data structures used throughout the renaming process,
-following the dataclass pattern for immutable configuration objects.
+This module defines the configuration and execution result data structures
+used throughout the renaming process.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
+
+
+@dataclass
+class RenameResult:
+    """Result of an attempted rename or undo operation.
+
+    **Attributes:**
+        `moves` (list[tuple[Path, Path]]): Actual changes from original to current paths
+        `errors` (list[str]): Execution and rollback error messages
+        `missing` (list[str]): Source paths missing before execution
+    """
+    moves: list[tuple[Path, Path]] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    missing: list[str] = field(default_factory=list)
 
 
 @dataclass

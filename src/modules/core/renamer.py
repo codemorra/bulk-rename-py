@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-
-# Bulk Rename Py
-# © 2026–present Codemorra (Christopher Kranz)
-# Licensed under the MIT License (see LICENSE file)
-
 """Main renaming logic and operations.
 
 Provides functionality for generating preview names, planning rename operations,
@@ -11,12 +5,13 @@ checking for conflicts, and executing file renaming.
 """
 
 import re
-from pathlib import Path
-from typing import List, Tuple, Dict, Optional
-from datetime import datetime
 from collections import defaultdict
-from .types import RenameCfg, DateTimeCfg, ReplaceCfg, CaseCfg
+from datetime import datetime
+from pathlib import Path
+
+from .file_operations import MoveExecutor
 from .tokens import TokenProcessor
+from .types import CaseCfg, DateTimeCfg, RenameCfg, RenameResult, ReplaceCfg
 from .validation import Validator
 
 
@@ -34,15 +29,15 @@ class Renamer:
 # MAIN FUNCTIONALITY #
 ######################
     @staticmethod
-    def preview_names(paths: List[Path], cfg: RenameCfg) -> List[str]:
+    def preview_names(paths: list[Path], cfg: RenameCfg) -> list[str]:
         """Generate preview names for file paths.
 
         **Parameters:**
-            `paths` (List[Path]): Source file paths
+            `paths` (list[Path]): Source file paths
             `cfg` (RenameCfg): Renaming configuration
 
         **Returns:**
-            `List[str]`: Generated preview names
+            `list[str]`: Generated preview names
         """
         results = []
 
@@ -101,15 +96,15 @@ class Renamer:
         return results
 
     @staticmethod
-    def plan_moves(paths: List[Path], new_names: List[str]) -> List[Tuple[Path, Path]]:
+    def plan_moves(paths: list[Path], new_names: list[str]) -> list[tuple[Path, Path]]:
         """Plan rename operations.
 
         **Parameters:**
-            `paths` (List[Path]): Source file paths
-            `new_names` (List[str]): New filenames
+            `paths` (list[Path]): Source file paths
+            `new_names` (list[str]): New filenames
 
         **Returns:**
-            `List[Tuple[Path, Path]]`: Source-destination pairs
+            `list[tuple[Path, Path]]`: Source-destination pairs
 
         **Raises:**
             `ValueError`: If paths and new_names have different lengths
@@ -119,50 +114,28 @@ class Renamer:
         return [(p, p.with_name(n)) for p, n in zip(paths, new_names)]
 
     @staticmethod
-    def perform_rename(moves: List[Tuple[Path, Path]]) -> List[str]:
+    def perform_rename(moves: list[tuple[Path, Path]]) -> RenameResult:
         """Execute rename operations.
 
         **Parameters:**
-            `moves` (List[Tuple[Path, Path]]): Rename operations to execute
+            `moves` (list[tuple[Path, Path]]): Rename operations to execute
 
         **Returns:**
-            `List[str]`: Error messages
+            `RenameResult`: Actual path changes, missing sources, and errors
         """
-        errors = []
-
-        for src, dst in moves:
-            try:
-                if src != dst:
-                    src.rename(dst)
-            except Exception as e:
-                errors.append(f"Failed to rename {src.name} to {dst.name}: {str(e)}")
-
-        return errors
+        return MoveExecutor.execute(moves)
 
     @staticmethod
-    def undo_moves(moves: List[Tuple[Path, Path]]) -> Tuple[List[str], List[str]]:
+    def undo_moves(moves: list[tuple[Path, Path]]) -> RenameResult:
         """Undo executed rename operations.
 
         **Parameters:**
-            `moves` (List[Tuple[Path, Path]]): Original rename operations
+            `moves` (list[tuple[Path, Path]]): Original rename operations
 
         **Returns:**
-            `Tuple[List[str], List[str]]`: Missing files and error messages
+            `RenameResult`: Actual undo changes, missing sources, and errors
         """
-        missing = []
-        errors = []
-
-        for src, dst in reversed(moves):
-            if not dst.exists():
-                missing.append(str(dst))
-                continue
-
-            try:
-                dst.rename(src)
-            except Exception as e:
-                errors.append(f"Failed to undo {dst.name} to {src.name}: {str(e)}")
-
-        return missing, errors
+        return MoveExecutor.execute([(dst, src) for src, dst in reversed(moves)])
 
 
 ##############
@@ -436,7 +409,7 @@ class Renamer:
 
         # Enforce whole word match if exact is True
         if exact:
-            pat = r'\b(?:%s)\b' % pat
+            pat = rf'\b(?:{pat})\b'
 
         # Apply case sensitivity flag
         flags = 0 if case_sensitive else re.IGNORECASE

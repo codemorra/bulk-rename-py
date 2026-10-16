@@ -1,6 +1,5 @@
 """Tests for the TokenProcessor class (modules/core/tokens.py)."""
 
-import pytest
 
 from modules.core.tokens import TokenProcessor
 
