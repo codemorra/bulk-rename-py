@@ -268,7 +268,8 @@ This project is licensed under the **MIT License**.
 See [`LICENSE`](LICENSE) for the full license text.
 
 Third-party libraries used by this project are licensed under their respective licenses.  
-All third-party license texts are collected in [`THIRD_PARTY_LICENSES.txt`](THIRD_PARTY_LICENSES.txt).
+The dependency overview and links to upstream license texts are listed in
+[`THIRD_PARTY_LICENSES.txt`](THIRD_PARTY_LICENSES.txt).
 
 ---
 

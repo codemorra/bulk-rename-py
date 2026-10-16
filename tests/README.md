@@ -76,7 +76,8 @@ requests.
 
 `test_module_imports.py` also runs a subprocess without site packages to verify
 core imports. Its icon check renders the SVG resource from `src/resources/` with
-PySide6 Essentials; the Addons package is not required.
+PySide6 Essentials. The resource definition uses the application icon from
+`assets/icons/bulk-rename-py.svg`.
 
 ## Lint Checks
 
