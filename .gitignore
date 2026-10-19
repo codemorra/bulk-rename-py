@@ -13,3 +13,7 @@ __pycache__/
 
 # Local project files
 .local/
+
+# Local PyInstaller builds
+/build/
+/dist/
