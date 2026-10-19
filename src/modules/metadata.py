@@ -3,27 +3,29 @@
 Provides application metadata and license information.
 """
 
+import sys
 from pathlib import Path
 
 
 def get_license_text() -> str:
     """Load and combine license texts.
 
-    Reads LICENSE and THIRD_PARTY_LICENSES.txt from the project root
-    and combines them with separating newlines for display in About dialog.
+    Reads LICENSE and THIRD_PARTY_LICENSES.txt from the project root or the
+    PyInstaller bundle and combines them for display in the About dialog.
 
     **Returns:**
         `str`: Combined license texts
     
     **Raises:**
-        `RuntimeError`: If no license files can be found
+        `RuntimeError`: If a required license file cannot be found
     """
-    project_root = Path(__file__).resolve().parents[2]
+    module_path = Path(__file__).resolve()
+    resource_root = module_path.parents[1] if getattr(sys, 'frozen', False) else module_path.parents[2]
     texts = []
     for filename in ("LICENSE", "THIRD_PARTY_LICENSES.txt"):
-        path = project_root / filename
+        path = resource_root / filename
         if not path.is_file():
-            raise RuntimeError(f"Could not find {filename} in the project root")
+            raise RuntimeError(f"Could not find {filename} in the application resources")
         texts.append(path.read_text(encoding="utf-8"))
 
     # Combine with separating newlines

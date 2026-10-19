@@ -1,6 +1,7 @@
 """Tests for independent core imports and lazy resource loading."""
 
 import importlib.util
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -48,3 +49,42 @@ def test_relocated_icon_resources_render_svg(qt_application):
     icon = main.QIcon(':/icons/app.svg')
 
     assert not icon.pixmap(32, 32).isNull()
+
+
+@pytest.mark.parametrize('layout', ['source', 'onedir', 'onefile'])
+def test_relocated_application_resources(tmp_path, monkeypatch, layout):
+    """Load both licenses and switch languages in source and frozen layouts."""
+    project = Path(__file__).resolve().parents[1]
+    if layout == 'source':
+        resource_root = tmp_path / 'checkout'
+        module_root = resource_root / 'src'
+    else:
+        resource_root = tmp_path / ('_internal' if layout == 'onedir' else '_MEI123456')
+        module_root = resource_root
+    modules_dir = module_root / 'modules'
+    modules_dir.mkdir(parents=True)
+    shutil.copytree(project / 'src' / 'locale', module_root / 'locale')
+    for filename in ('LICENSE', 'THIRD_PARTY_LICENSES.txt'):
+        shutil.copy2(project / filename, resource_root / filename)
+    monkeypatch.setattr(sys, 'frozen', layout != 'source', raising=False)
+    if layout != 'source':
+        monkeypatch.setattr(sys, '_MEIPASS', str(resource_root), raising=False)
+    monkeypatch.chdir(tmp_path)
+    loaded = {}
+    for name in ('metadata', 'i18n'):
+        path = modules_dir / f'{name}.py'
+        shutil.copy2(project / 'src' / 'modules' / path.name, path)
+        spec = importlib.util.spec_from_file_location(f'relocated_{name}', path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        loaded[name] = module
+
+    text = loaded['metadata'].get_license_text()
+    for filename in ('LICENSE', 'THIRD_PARTY_LICENSES.txt'):
+        assert (project / filename).read_text(encoding='utf-8') in text
+    translator = loaded['i18n'].Translator('en')
+    assert translator.t('menu.file') == 'File'
+    translator.switch_language('de')
+    assert translator.t('menu.file') == 'Datei'
+    translator.switch_language('en')
+    assert translator.t('menu.file') == 'File'
