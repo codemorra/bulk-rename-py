@@ -206,6 +206,20 @@ Keep a backup of important files before renaming. File permissions, filesystem
 changes, and other applications can affect a rename or its recovery. The developer
 assumes no responsibility for data loss.
 
+## Application logs
+
+The application writes local logs to help diagnose errors. The log file is named
+`bulk-rename-py.log` and is stored in these locations:
+
+| Platform | Location |
+| -------- | -------- |
+| Windows | `%LOCALAPPDATA%\BulkRenamePy\logs\` |
+| Linux | `$XDG_STATE_HOME/BulkRenamePy/logs/`, defaulting to `~/.local/state/BulkRenamePy/logs/` |
+
+Logs rotate automatically at 1 MiB per file, keeping three older files as backups.
+If the log file cannot be created, logging falls back to the console and the
+application continues to start.
+
 ## Updates
 
 Check for new GitHub releases in the About dialog. To update a Git checkout,
