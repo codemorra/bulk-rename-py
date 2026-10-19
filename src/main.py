@@ -2,21 +2,28 @@
 Main entry point for Bulk Rename Py application.
 
 This module serves as the primary entry point when running the application.
-It initializes the Qt application environment, configures platform-specific
-settings, and launches the main window. The application uses PySide6 for its GUI.
+It configures application logging, initializes the Qt application environment,
+applies platform-specific settings, and launches the main window. The application
+uses PySide6 for its GUI.
 """
 
 from __future__ import annotations
 
+import logging
 import os
+import platform
 import sys
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtWidgets import QApplication
 
+from modules.app_logging import configure_logging
 from modules.gui.main_window import MainWindow
+from modules.metadata import APP_INFO
 from resources import icons_rc  # noqa: F401 -- Register compiled Qt resources on import.
+
+logger = logging.getLogger(__name__)
 
 
 def _apply_windows_theme(app: QApplication) -> None:
@@ -45,12 +52,13 @@ def _apply_windows_theme(app: QApplication) -> None:
 def main() -> int:
     """Application entry point and main execution function.
 
-    Performs the following setup steps:
-    1. Configures high-DPI scaling for proper display on all screens
-    2. Creates the QApplication instance
-    3. Applies platform-specific theme settings
-    4. Initializes and displays the main window
-    5. Starts the Qt event loop
+    Performs the following steps:
+    1. Configures logging and records application version, Python, and platform
+    2. Configures high-DPI scaling for proper display on all screens
+    3. Creates the QApplication instance
+    4. Applies platform-specific theme settings
+    5. Initializes and displays the main window
+    6. Starts the Qt event loop and logs its normal return with the exit code
 
     This function is called when the script is executed directly and serves
     as the entry point for both direct execution and packaged distributions.
@@ -61,6 +69,12 @@ def main() -> int:
     Raises:
         SystemExit: When called from __main__ (wraps the exit code)
     """
+    configure_logging()
+    logger.info(
+        'Application started: Bulk Rename Py %s; Python %s; platform %s',
+        APP_INFO['version'], platform.python_version(), platform.system(),
+    )
+
     QGuiApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
@@ -78,7 +92,9 @@ def main() -> int:
     window = MainWindow()
     window.show()
 
-    return app.exec()
+    exit_code = app.exec()
+    logger.info('Application stopped: exit code %s', exit_code)
+    return exit_code
 
 
 if __name__ == '__main__':
