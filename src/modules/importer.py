@@ -4,6 +4,7 @@ Provides functionality for collecting files from specified paths
 with configurable import options and duplicate handling.
 """
 
+import logging
 import os
 import stat
 from collections.abc import Iterator
@@ -11,6 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .core.validation import Validator
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -101,6 +104,7 @@ class Importer:
                 attrs = p.stat(follow_symlinks=False).st_file_attributes
                 return bool(attrs & (stat.FILE_ATTRIBUTE_HIDDEN | stat.FILE_ATTRIBUTE_SYSTEM))
             except OSError:
+                logger.warning('Could not read hidden attributes for %s', p, exc_info=True)
                 return False
         else:
             # Unix-like: leading dot means hidden

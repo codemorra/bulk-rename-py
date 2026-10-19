@@ -6,6 +6,7 @@ and update checking functionality for the about dialog.
 
 from __future__ import annotations
 
+import logging
 import webbrowser
 
 from PySide6.QtCore import Qt
@@ -23,6 +24,8 @@ from PySide6.QtWidgets import (
 
 from ..metadata import APP_INFO, get_license_text
 from ..update_checker import UpdateChecker
+
+logger = logging.getLogger(__name__)
 
 # Constants
 LICENSE_LINK = 'app://license'
@@ -126,6 +129,7 @@ class AboutDialog:
                     # Open external URLs in default browser
                     webbrowser.open(url)
             except (OSError, RuntimeError, webbrowser.Error) as e:
+                logger.exception('Could not open About dialog link %s', url)
                 # Show warning on error
                 QMessageBox.warning(
                     dlg,

@@ -110,7 +110,11 @@ def ensure_config_file() -> None:
     """
     # Create configuration directory if it doesn't exist
     if not CONFIG_DIR.exists():
-        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        try:
+            CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            logger.exception('Could not create settings directory %s', CONFIG_DIR)
+            raise
 
     # Create default configuration file if missing
     if not CONFIG_FILE.exists():
@@ -136,6 +140,7 @@ def get_config() -> configparser.ConfigParser:
         with CONFIG_FILE.open('r', encoding='utf-8') as stream:
             cfg.read_file(stream)
     except (OSError, UnicodeError, configparser.Error) as e:
+        logger.exception('Could not read settings from %s', CONFIG_FILE)
         raise RuntimeError(f"Failed to read configuration {CONFIG_FILE}: {e}") from e
 
     # Validate and sanitize configuration
@@ -405,6 +410,7 @@ def _save_config(cfg: configparser.ConfigParser) -> None:
             os.fsync(stream.fileno())
         os.replace(temporary, CONFIG_FILE)
     except (OSError, UnicodeError) as e:
+        logger.exception('Could not save settings to %s', CONFIG_FILE)
         raise RuntimeError(f"Failed to save configuration: {e}") from e
     finally:
         if temporary is not None:

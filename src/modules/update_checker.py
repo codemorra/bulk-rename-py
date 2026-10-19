@@ -6,6 +6,7 @@ Runs asynchronously to avoid blocking the GUI.
 
 from __future__ import annotations
 
+import logging
 import platform
 import re
 import threading
@@ -13,6 +14,8 @@ import threading
 import certifi
 import requests
 from PySide6.QtCore import QObject, Signal
+
+logger = logging.getLogger(__name__)
 
 
 def _version_tuple(v: str) -> tuple[int, ...]:
@@ -110,8 +113,10 @@ class UpdateChecker(QObject):
                 status = 'none'
 
             # Emit success result
+            logger.info('Update check completed: %s; latest version %s', status, tag)
             self.finished.emit(status, url)
 
         except (requests.RequestException, ValueError, TypeError):
+            logger.exception('Update check failed')
             # Emit failure for network errors and malformed release data
             self.finished.emit('failed', releases_url)

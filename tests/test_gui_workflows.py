@@ -1,5 +1,6 @@
 """Tests for table actions, cancelled imports, and external editor workflows."""
 
+import logging
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -284,7 +285,8 @@ class TestEditorWorkflow:
             assert messages == ['messages.errors.open_editor_failed']
 
     @pytest.mark.parametrize('corrupt', [False, True])
-    def test_read_failure_cleans_up_preview_file(self, tmp_path, manager_factory, monkeypatch, corrupt):
+    def test_read_failure_cleans_up_preview_file(
+            self, tmp_path, manager_factory, monkeypatch, corrupt, caplog):
         """Test cleanup after invalid UTF-8 data or deletion by the external editor."""
         manager, messages = manager_factory([(tmp_path / 'source.txt', tmp_path / 'original.txt')])
         paths = []
@@ -304,6 +306,12 @@ class TestEditorWorkflow:
         assert not paths[0].exists()
         assert manager.main_window.table.item(0, 1).text() == 'original.txt'
         assert messages == ['messages.errors.read_failed']
+        errors = [record for record in caplog.records if record.name == rename_manager.__name__]
+        assert len(errors) == 1
+        assert str(paths[0]) in errors[0].getMessage()
+        assert errors[0].exc_info is not None
+        expected_error = UnicodeDecodeError if corrupt else FileNotFoundError
+        assert errors[0].exc_info[0] is expected_error
 
     def test_cancelled_load_cleans_up_preview_file(self, tmp_path, manager_factory, monkeypatch):
         """Test cleanup when the user declines loading the edited file."""
@@ -364,11 +372,12 @@ class TestEditorWorkflow:
         manager._cleanup_temp_file(preview)
 
 
-def test_main_window_rename_undo_and_clear(qt_application, tmp_path, monkeypatch):
-    """Test the complete window with isolated settings and intercepted confirmations."""
+def test_main_window_rename_undo_and_clear(qt_application, tmp_path, monkeypatch, caplog):
+    """Test the complete workflow and keep user file paths out of INFO summaries."""
     from modules import settings
     from modules.gui import main_window
 
+    caplog.set_level(logging.INFO)
     config_dir = tmp_path / 'config'
     monkeypatch.setattr(settings, 'CONFIG_DIR', config_dir)
     monkeypatch.setattr(settings, 'CONFIG_FILE', config_dir / 'config.ini')
@@ -405,6 +414,12 @@ def test_main_window_rename_undo_and_clear(qt_application, tmp_path, monkeypatch
         window.table_manager.remove_selected_rows()
         assert window.table.rowCount() == 0
         assert not window._update_timer.isActive()
+
+        summaries = [record.getMessage() for record in caplog.records
+                     if record.name.startswith('modules.') and record.levelno == logging.INFO]
+        assert summaries
+        assert all(str(tmp_path) not in message and src.name not in message
+                   and dst.name not in message for message in summaries)
 
         assert window.rename_manager.import_from_paths([str(src)])
         assert window.table_manager.clear_table()
