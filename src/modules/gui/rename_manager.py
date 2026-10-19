@@ -277,6 +277,7 @@ class RenameManager:
                     stream.write(name + '\n')
             return tmpfile
         except (OSError, UnicodeError):
+            logger.exception('Could not write temporary editor file %s', tmpfile)
             if tmpfile is not None:
                 self._cleanup_temp_file(tmpfile)
             QMessageBox.critical(self.main_window, self.helpers.tr('messages.error'),
@@ -294,6 +295,7 @@ class RenameManager:
         """
         # Open file with default system editor
         if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(tmpfile))):
+            logger.error('Could not launch external editor for %s', tmpfile)
             # Show error if opening editor fails
             QMessageBox.critical(self.main_window, self.helpers.tr('messages.error'),
                                 self.helpers.tr('messages.errors.open_editor_failed'))
@@ -339,6 +341,7 @@ class RenameManager:
                 lines = f.readlines()
             return self._process_file_lines(lines)
         except (OSError, UnicodeError):
+            logger.exception('Could not read temporary editor file %s', tmpfile)
             # Show error if reading fails
             QMessageBox.critical(self.main_window, self.helpers.tr('messages.error'),
                                 self.helpers.tr('messages.errors.read_failed'))
@@ -437,6 +440,7 @@ class RenameManager:
                 paths, new_names, windows_safe=self.collect_cfg().case.windows_names
             )
         except ValueError as e:
+            logger.warning('Rename planning rejected: %s', e)
             QMessageBox.warning(
                 self.main_window, self.helpers.tr('messages.warning'),
                 self.helpers.tr('messages.warnings.invalid_chars') + '\n\n' + str(e)
@@ -457,12 +461,14 @@ class RenameManager:
         # Check for conflicts
         conflicts = Validator.check_conflicts(plan)
         if conflicts:
+            logger.warning('Rename blocked: %d conflicts', len(conflicts))
             self.show_conflicts(conflicts)
             return
 
         # Check for missing source files
         missing = [str(src) for src, _ in effective if not os.path.lexists(src)]
         if missing:
+            logger.warning('Rename blocked: %d missing sources', len(missing))
             QMessageBox.critical(
                 self.main_window,
                 self.helpers.tr('messages.error'),
@@ -471,7 +477,15 @@ class RenameManager:
             return
 
         # Perform the actual rename operation
+        logger.info('Rename started: %d files', len(effective))
         result = Renamer.perform_rename(effective)
+        if result.missing or result.errors:
+            logger.error(
+                'Rename failed: %d missing sources, %d errors, %d files at changed paths',
+                len(result.missing), len(result.errors), len(result.moves),
+            )
+        else:
+            logger.info('Rename completed: %d files', len(result.moves))
 
         # Record actual changes even if rollback could not restore every file
         if result.moves:
@@ -669,6 +683,7 @@ class RenameManager:
         moves = self.main_window._undo_stack[-1]
 
         # Attempt to undo the rename operation
+        logger.info('Undo started: %d files', len(moves))
         result = Renamer.undo_moves(moves)
 
         # Retain only the changes that still need undoing
@@ -682,6 +697,14 @@ class RenameManager:
             self.main_window._undo_stack[-1] = remaining
         else:
             self.main_window._undo_stack.pop()
+
+        if result.missing or result.errors:
+            logger.error(
+                'Undo failed: %d missing sources, %d errors, %d files still pending',
+                len(result.missing), len(result.errors), len(remaining),
+            )
+        else:
+            logger.info('Undo completed: %d files', len(result.moves))
 
         self._apply_path_changes(result.moves)
         self.update_undo_state()
@@ -830,6 +853,7 @@ class RenameManager:
                 str(p)
             ))
         except (OSError, ValueError) as e:
+            logger.exception('File import failed')
             QMessageBox.critical(
                 self.main_window, self.helpers.tr('messages.error'),
                 self.helpers.tr('messages.errors.import_failed') + '\n\n' + str(e)
@@ -854,4 +878,5 @@ class RenameManager:
             self.main_window.table.setUpdatesEnabled(updates_enabled)
 
         self.table_manager.update_preview_later()
+        logger.info('Import completed: %d files', len(files))
         return True

@@ -68,8 +68,8 @@ class TestRenameManagerState:
         assert not list(tmp_path.glob('.bulkrename-*'))
 
     def test_incomplete_rollback_records_actual_location(
-            self, tmp_path, manager_factory, monkeypatch):
-        """Test that staged files remain visible and can be recovered with undo."""
+            self, tmp_path, manager_factory, monkeypatch, caplog):
+        """Test recovery locations in the UI and diagnostics after an incomplete rollback."""
         a, b = tmp_path / 'a.txt', tmp_path / 'b.txt'
         first, second = tmp_path / 'first.txt', tmp_path / 'second.txt'
         a.write_text('A', encoding='utf-8')
@@ -94,6 +94,16 @@ class TestRenameManagerState:
         assert staged.read_text(encoding='utf-8') == 'A'
         assert a.read_text(encoding='utf-8') == 'external content'
         assert any(str(staged) in message for message in messages)
+
+        failures = [record for record in caplog.records if record.exc_info is not None]
+        assert len(failures) == 2
+        assert failures[0].exc_info[0] is PermissionError
+        assert failures[1].exc_info[0] is FileExistsError
+        assert str(a) in failures[1].getMessage()
+        assert str(staged) in failures[1].getMessage()
+        assert 'Rollback incomplete' in caplog.text
+        assert 'Rename failed' in caplog.text
+        assert 'Rename completed' not in caplog.text
 
         a.unlink()
         monkeypatch.setattr(MoveExecutor, '_rename_no_replace', rename)

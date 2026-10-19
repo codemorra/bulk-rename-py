@@ -6,6 +6,7 @@ destination replacement, and reports actual file locations after failures.
 
 import ctypes
 import errno
+import logging
 import os
 import sys
 from dataclasses import dataclass
@@ -18,6 +19,7 @@ from .validation import Validator
 # Constants
 AT_FDCWD = -100
 RENAME_NOREPLACE = 1
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -54,6 +56,10 @@ class MoveExecutor:
                 if src.is_dir() and not src.is_symlink():
                     result.errors.append(f"Cannot rename a directory as a file: {src}")
             if result.errors or result.missing:
+                logger.warning(
+                    'File move batch rejected: %d missing sources, %d errors',
+                    len(result.missing), len(result.errors),
+                )
                 return result
 
             # Stage every source before assigning any final destination
@@ -72,6 +78,7 @@ class MoveExecutor:
                 state.current = state.destination
 
         except (OSError, ValueError) as e:
+            logger.exception('File move batch failed')
             result.errors.append(f"Rename failed: {e}")
             MoveExecutor._rollback(states, result)
         result.moves = [(state.source, state.current) for state in states
@@ -89,6 +96,7 @@ class MoveExecutor:
         **Returns:**
             `None`
         """
+        logger.info('Rollback started: %d tracked files', len(states))
         # Vacate completed destinations before restoring sources in a cycle
         for state in states:
             if str(state.current) in (str(state.source), str(state.temporary)):
@@ -97,6 +105,7 @@ class MoveExecutor:
                 MoveExecutor._rename_no_replace(state.current, state.temporary)
                 state.current = state.temporary
             except OSError as e:
+                logger.exception('Could not stage %s for rollback', state.current)
                 result.errors.append(f"Could not stage {state.current} for rollback: {e}")
 
         for state in states:
@@ -106,9 +115,18 @@ class MoveExecutor:
                 MoveExecutor._rename_no_replace(state.current, state.source)
                 state.current = state.source
             except OSError as e:
+                logger.exception(
+                    'Could not restore %s; file remains at %s', state.source, state.current
+                )
                 result.errors.append(
                     f"Could not restore {state.source}; file remains at {state.current}: {e}"
                 )
+
+        remaining = sum(str(state.current) != str(state.source) for state in states)
+        if remaining:
+            logger.error('Rollback incomplete: %d files remain at changed paths', remaining)
+        else:
+            logger.info('Rollback completed: all tracked files restored')
 
     @staticmethod
     def _rename_no_replace(src: Path, dst: Path) -> None:

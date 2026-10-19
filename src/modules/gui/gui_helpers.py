@@ -7,11 +7,14 @@ and common dialog operations.
 
 from __future__ import annotations
 
+import logging
 import os
 
 from PySide6.QtWidgets import QMessageBox
 
 from ..settings import set_language_in_config
+
+logger = logging.getLogger(__name__)
 
 # Constants
 DEFAULT_TOKEN_NAME = '{name}'
@@ -80,6 +83,7 @@ class GUIHelpers:
             self.main_window._next_window.show()
             self.main_window.close()
         except (OSError, RuntimeError, ValueError) as e:
+            logger.exception('Could not restart the main window')
             # Show error message if restart fails
             QMessageBox.critical(
                 self.main_window,
