@@ -1,9 +1,11 @@
 THIRD-PARTY DEPENDENCIES
 ========================
 
-Bulk Rename Py is licensed under MIT (see LICENSE). Python and the dependencies
-below are installed separately and retain their own licenses. This overview
-links to the upstream license texts.
+Bulk Rename Py itself is licensed under MIT (see LICENSE). This informative
+overview lists the runtime components, build tools, and development tools selected
+directly by the project. They are installed separately and retain their own
+licenses. Authoritative license texts and component notices are maintained by
+the upstream projects linked below.
 
 Runtime
 -------
@@ -11,27 +13,25 @@ Runtime
 Python — PSF License Agreement and accompanying notices
 https://docs.python.org/3.14/license.html
 
-PySide6 Essentials / Shiboken6 — LGPLv3 / GPLv2 / GPLv3 options
+PySide6 Essentials — LGPLv3 / GPLv2 / GPLv3 options
 https://doc.qt.io/qtforpython-6/licenses.html
 
-Qt — LGPLv3 and applicable component licenses
+Qt libraries used through PySide6 Essentials — LGPLv3 / GPLv3 and component licenses
 https://doc.qt.io/qt-6/licensing.html
-https://doc.qt.io/qt-6/third-party-licenses.html
 
 certifi — Mozilla Public License 2.0
 https://github.com/certifi/python-certifi/blob/master/LICENSE
 
-charset-normalizer — MIT License
-https://github.com/jawah/charset_normalizer/blob/master/LICENSE
-
-idna — BSD 3-Clause License
-https://github.com/kjd/idna/blob/master/LICENSE.md
-
 Requests — Apache License 2.0
 https://github.com/psf/requests/blob/main/LICENSE
 
-urllib3 — MIT License
-https://github.com/urllib3/urllib3/blob/main/LICENSE.txt
+Build tools
+-----------
+
+PyInstaller — GPLv2-or-later with bootloader exception;
+Apache License 2.0 for runtime hooks and certain other files
+https://pyinstaller.org/en/stable/license.html
+https://github.com/pyinstaller/pyinstaller/blob/develop/COPYING.txt
 
 Development tools
 -----------------

@@ -37,12 +37,11 @@ The application uses Python 3.14 or newer and Qt Widgets through PySide6 Essenti
 Requests and certifi support checking GitHub releases from the About dialog.
 Dependencies are listed in [requirements.txt](requirements.txt).
 
-The current optimization work has been tested on Linux (Arch Linux). Manual
-verification of this revision on Windows 11 remains open.
+The application has been tested on Linux (Arch Linux) and Windows.
 
 ## Getting started
 
-Install Python 3.14 or newer and Git, then clone the repository:
+Install Python 3.14 or newer, then clone the repository:
 
 ```bash
 git clone https://github.com/codemorra/bulk-rename-py.git
@@ -111,8 +110,9 @@ The application should now appear in the start menu with its icon.
 In Command Prompt, create a virtual environment and install the dependencies:
 
 ```bat
-py -3.14 -m venv .venv
-.venv\Scripts\python.exe -m pip install -r requirements.txt
+python -m venv .venv
+.venv\Scripts\activate.bat
+python -m pip install -r requirements.txt
 ```
 
 Start the application from the project directory:
@@ -137,6 +137,71 @@ Open the shortcut's **Properties → Change Icon** and select:
 ```text
 <PATH_TO_REPOSITORY>\assets\icons\bulk-rename-py.ico
 ```
+
+## Local builds
+
+You can run the application from the source checkout as described above, or build
+a standalone executable locally using [PyInstaller](https://pyinstaller.org/).
+The executable includes Python and the application's runtime dependencies.
+
+Builds support Linux x86-64 and Windows x86-64. Use a 64-bit Python 3.14 or newer
+and the `.venv` prepared above. Build on the target operating system: Linux
+builds on Linux, Windows builds on Windows.
+
+### Linux build
+
+From the repository root, install the separate build requirements and build either
+or both formats:
+
+```bash
+source .venv/bin/activate
+python -m pip install -r requirements-build.txt
+python scripts/build.py onedir
+python scripts/build.py onefile
+```
+
+The executables are located at `dist/onedir/bulk-rename-py/bulk-rename-py` and
+`dist/onefile/bulk-rename-py`.
+
+### Windows build
+
+From the repository root in Command Prompt:
+
+```bat
+.venv\Scripts\activate.bat
+python -m pip install -r requirements-build.txt
+python scripts/build.py onedir
+python scripts/build.py onefile
+```
+
+The executables are located at `dist\onedir\bulk-rename-py\bulk-rename-py.exe` and
+`dist\onefile\bulk-rename-py.exe`.
+
+Windows builds use the existing application icon and launch directly into the
+graphical interface.
+
+### Build output and compatibility
+
+- `onedir` creates a folder containing the executable and its support files.
+  Keep the entire `dist/onedir/bulk-rename-py/` folder together, including `_internal`.
+- `onefile` creates a single executable that extracts its support files
+  temporarily when launched (startup may take longer).
+
+Both formats keep settings and logs in the user directories documented below.
+
+The build script uses its current Python environment. Install the build
+requirements before running it; these include the runtime requirements used for
+running from source. Temporary build files, generated `.spec` files, and the
+PyInstaller cache are kept under `build/`. Rebuilding the same format replaces
+its previous output.
+
+On Linux, the build system's glibc and native libraries affect compatibility.
+The [PySide6 Essentials 6.11.1 x86-64 wheels](https://pypi.org/project/PySide6-Essentials/6.11.1/#files)
+require glibc 2.34 or newer. To target glibc 2.34, build in a compatible environment
+where Python and all native dependencies also support that version, then test on
+the target systems. A build made on a newer system may require a newer glibc.
+Use the oldest supported build environment for broader compatibility, as described
+in the [PyInstaller Linux guidance](https://pyinstaller.org/en/stable/usage.html#making-gnu-linux-apps-forward-compatible).
 
 ## Naming options
 
@@ -187,10 +252,10 @@ case, and mocking case. Extensions have their own naming pattern.
 
 ## Behavior and local settings
 
-Windows-compatible naming is always enabled on Windows and optional on Linux.
+Windows-compatible naming is optional on Linux and always enabled on Windows.
 It replaces invalid characters and handles reserved names such as `CON`, `PRN`,
-and `NUL`. Validation checks filename length in Windows UTF-16 code units and
-Linux UTF-8 bytes.
+and `NUL`. Validation checks filename length in Linux UTF-8 bytes and
+Windows UTF-16 code units.
 
 On Windows, add `.lnk` directory shortcuts through **Add folder**; **Add file(s)**
 opens their target directory instead.
@@ -211,10 +276,10 @@ assumes no responsibility for data loss.
 The application writes local logs to help diagnose errors. The log file is named
 `bulk-rename-py.log` and is stored in these locations:
 
-| Platform | Location |
-| -------- | -------- |
-| Windows | `%LOCALAPPDATA%\BulkRenamePy\logs\` |
-| Linux | `$XDG_STATE_HOME/BulkRenamePy/logs/`, defaulting to `~/.local/state/BulkRenamePy/logs/` |
+| Platform | Location                                                                                |
+| -------- | --------------------------------------------------------------------------------------- |
+| Linux    | `$XDG_STATE_HOME/BulkRenamePy/logs/`, defaulting to `~/.local/state/BulkRenamePy/logs/` |
+| Windows  | `%LOCALAPPDATA%\BulkRenamePy\logs\`                                                     |
 
 Logs rotate automatically at 1 MiB per file, keeping three older files as backups.
 If the log file cannot be created, logging falls back to the console and the
@@ -229,14 +294,20 @@ the dependencies using the project interpreter.
 Linux:
 
 ```bash
-.venv/bin/python -m pip install -r requirements.txt --upgrade
+source .venv/bin/activate
+python -m pip install -r requirements.txt --upgrade
 ```
 
 Windows Command Prompt:
 
 ```bat
-.venv\Scripts\python.exe -m pip install -r requirements.txt --upgrade
+.venv\Scripts\activate.bat
+python -m pip install -r requirements.txt --upgrade
 ```
+
+To update a locally built executable, repeat the dependency installation and build
+steps in [Local builds](#local-builds) after updating the checkout. Then use the
+newly generated executable.
 
 ## Maintenance and quality checks
 
@@ -256,6 +327,7 @@ checks from the repository root:
 python -m pip install -r tests/requirements.txt
 python -m pytest
 python -m ruff check src tests
+python -m ruff check scripts/build.py
 ```
 
 See [the test documentation](tests/README.md) for individual checks and coverage.
